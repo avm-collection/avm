@@ -1,5 +1,5 @@
 <p align="center">
-	<h1 align="center">binw</h2>
+	<img width="400px" src="res/logo.png"/>
 	<p align="center">Just a virtual machine in C</p>
 </p>
 <p align="center">

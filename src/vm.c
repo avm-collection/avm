@@ -1,7 +1,7 @@
 #include "vm.h"
 #include "main.h"
 
-static const char *err_str(int p_err) {
+const char *err_str(enum err p_err) {
 	switch (p_err) {
 	case ERR_OK: return "OK";
 	case ERR_STACK_OVERFLOW:  return "Stack Overflow";
@@ -55,28 +55,30 @@ static word_t *vm_reg(struct vm *p_vm, uint8_t p_reg) {
 	return &p_vm->regs[p_reg];
 }
 
-static int vm_exec_inst(struct vm *p_vm, struct inst p_inst) {
-	switch (p_inst.op) {
+static int vm_exec_next_inst(struct vm *p_vm) {
+	struct inst *inst = &p_vm->program[*p_vm->ip];
+
+	switch (inst->op) {
 	case OP_NOP: break;
 
 	case OP_MOV:
 		{
-			word_t *reg = vm_reg(p_vm, p_inst.reg);
+			word_t *reg = vm_reg(p_vm, inst->reg);
 			if (reg == NULL)
 				return ERR_INVALID_ACCESS;
 
-			*reg = p_inst.data;
+			*reg = inst->data;
 		}
 
 		break;
 
-	case OP_MOV_REG:
+	case OP_MOR:
 		{
-			word_t *reg_a = vm_reg(p_vm, p_inst.reg);
+			word_t *reg_a = vm_reg(p_vm, inst->reg);
 			if (reg_a == NULL)
 				return ERR_INVALID_ACCESS;
 
-			word_t *reg_b = vm_reg(p_vm, (uint8_t)p_inst.data);
+			word_t *reg_b = vm_reg(p_vm, (uint8_t)inst->data);
 			if (reg_b == NULL)
 				return ERR_INVALID_ACCESS;
 
@@ -85,20 +87,20 @@ static int vm_exec_inst(struct vm *p_vm, struct inst p_inst) {
 
 		break;
 
-	case OP_PUSH:
-		if (*p_vm->sp + 1 > STACK_CAPACITY)
+	case OP_PSH:
+		if (*p_vm->sp >= STACK_CAPACITY)
 			return ERR_STACK_OVERFLOW;
 
-		p_vm->stack[(*p_vm->sp) ++] = p_inst.data;
+		p_vm->stack[(*p_vm->sp) ++] = inst->data;
 
 		break;
 
-	case OP_PUSH_REG:
-		if (*p_vm->sp + 1 > STACK_CAPACITY)
+	case OP_PSR:
+		if (*p_vm->sp >= STACK_CAPACITY)
 			return ERR_STACK_OVERFLOW;
 
 		{
-			word_t *reg = vm_reg(p_vm, p_inst.reg);
+			word_t *reg = vm_reg(p_vm, inst->reg);
 			if (reg == NULL)
 				return ERR_INVALID_ACCESS;
 
@@ -108,93 +110,206 @@ static int vm_exec_inst(struct vm *p_vm, struct inst p_inst) {
 		break;
 
 	case OP_POP:
-		-- *p_vm->sp;
-
-		if (*p_vm->sp < *p_vm->sb)
+		if (*p_vm->sp <= *p_vm->sb)
 			return ERR_STACK_UNDERFLOW;
+
+		-- *p_vm->sp;
 
 		break;
 
-	case OP_POP_REG:
+	case OP_POR:
+		if (*p_vm->sp <= *p_vm->sb)
+			return ERR_STACK_UNDERFLOW;
+
 		{
-			word_t *reg = vm_reg(p_vm, p_inst.reg);
+			word_t *reg = vm_reg(p_vm, inst->reg);
 			if (reg == NULL)
 				return ERR_INVALID_ACCESS;
 
-			*reg = p_vm->stack[(*p_vm->sp) --];
-
-			if (*p_vm->sp < *p_vm->sb)
-				return ERR_STACK_UNDERFLOW;
+			*reg = p_vm->stack[-- (*p_vm->sp)];
 		}
 
 		break;
 
 	case OP_ADD:
-		{
-			word_t a = p_vm->stack[*p_vm->sp - 2], b = p_vm->stack[*p_vm->sp - 1];
+		if (*p_vm->sp - 1 <= *p_vm->sb)
+			return ERR_STACK_UNDERFLOW;
 
-			-- *p_vm->sp;
-			p_vm->stack[*p_vm->sp - 1] = a + b;
-		}
+		p_vm->stack[*p_vm->sp - 2] += p_vm->stack[*p_vm->sp - 1];
+		-- *p_vm->sp;
 
 		break;
 
 	case OP_SUB:
-		{
-			word_t a = p_vm->stack[*p_vm->sp - 2], b = p_vm->stack[*p_vm->sp - 1];
+		if (*p_vm->sp - 1 <= *p_vm->sb)
+			return ERR_STACK_UNDERFLOW;
 
-			-- *p_vm->sp;
-			p_vm->stack[*p_vm->sp - 1] = a - b;
-		}
+		p_vm->stack[*p_vm->sp - 2] -= p_vm->stack[*p_vm->sp - 1];
+		-- *p_vm->sp;
 
 		break;
 
 	case OP_MUL:
-		{
-			word_t a = p_vm->stack[*p_vm->sp - 2], b = p_vm->stack[*p_vm->sp - 1];
+		if (*p_vm->sp - 1 <= *p_vm->sb)
+			return ERR_STACK_UNDERFLOW;
 
-			-- *p_vm->sp;
-			p_vm->stack[*p_vm->sp - 1] = a * b;
-		}
+		p_vm->stack[*p_vm->sp - 2] *= p_vm->stack[*p_vm->sp - 1];
+		-- *p_vm->sp;
 
 		break;
 
 	case OP_DIV:
-		{
-			word_t a = p_vm->stack[*p_vm->sp - 2], b = p_vm->stack[*p_vm->sp - 1];
+		if (*p_vm->sp - 1 <= *p_vm->sb)
+			return ERR_STACK_UNDERFLOW;
 
+		{
+			word_t b = p_vm->stack[*p_vm->sp - 1];
 			if (b == 0)
 				return ERR_DIV_BY_ZERO;
 
-			*p_vm->ac = a % b;
-
+			p_vm->stack[*p_vm->sp - 2] /= b;
 			-- *p_vm->sp;
-			p_vm->stack[*p_vm->sp - 1] = a / b;
 		}
 
 		break;
 
 	case OP_MOD:
-		{
-			word_t a = p_vm->stack[*p_vm->sp - 2], b = p_vm->stack[*p_vm->sp - 1];
+		if (*p_vm->sp - 1 <= *p_vm->sb)
+			return ERR_STACK_UNDERFLOW;
 
-			-- *p_vm->sp;
-			p_vm->stack[*p_vm->sp - 1] = a % b;
-		}
+		p_vm->stack[*p_vm->sp - 2] %= p_vm->stack[*p_vm->sp - 1];
+		-- *p_vm->sp;
 
 		break;
 
-	case OP_DUMP: vm_dump(p_vm, stdout); break;
-	case OP_HALT: p_vm->halt = true;     break;
+	case OP_INC:
+		if (*p_vm->sp <= *p_vm->sb)
+			return ERR_STACK_UNDERFLOW;
+
+		++ p_vm->stack[*p_vm->sp - 1];
+
+		break;
+
+	case OP_DEC:
+		if (*p_vm->sp <= *p_vm->sb)
+			return ERR_STACK_UNDERFLOW;
+
+		-- p_vm->stack[*p_vm->sp - 1];
+
+		break;
+
+	case OP_JMP:
+		if (inst->data >= p_vm->program_size)
+			return ERR_INVALID_ACCESS;
+
+		*p_vm->ip = inst->data - 1;
+
+		break;
+
+	case OP_JNZ:
+		if (*p_vm->sp <= *p_vm->sb)
+			return ERR_STACK_UNDERFLOW;
+
+		if (p_vm->stack[*p_vm->sp - 1]) {
+			if (inst->data >= p_vm->program_size)
+				return ERR_INVALID_ACCESS;
+
+			*p_vm->ip = inst->data - 1;
+		}
+
+		-- *p_vm->sp;
+
+		break;
+
+	case OP_EQU:
+		if (*p_vm->sp - 1 <= *p_vm->sb)
+			return ERR_STACK_UNDERFLOW;
+
+		p_vm->stack[*p_vm->sp - 2] = p_vm->stack[*p_vm->sp - 2] == p_vm->stack[*p_vm->sp - 1];
+		-- *p_vm->sp;
+
+		break;
+
+	case OP_NEQ:
+		if (*p_vm->sp - 1 <= *p_vm->sb)
+			return ERR_STACK_UNDERFLOW;
+
+		p_vm->stack[*p_vm->sp - 2] = p_vm->stack[*p_vm->sp - 2] != p_vm->stack[*p_vm->sp - 1];
+		-- *p_vm->sp;
+
+		break;
+
+	case OP_GRT:
+		if (*p_vm->sp - 1 <= *p_vm->sb)
+			return ERR_STACK_UNDERFLOW;
+
+		p_vm->stack[*p_vm->sp - 2] = p_vm->stack[*p_vm->sp - 2] > p_vm->stack[*p_vm->sp - 1];
+		-- *p_vm->sp;
+
+		break;
+
+	case OP_GEQ:
+		if (*p_vm->sp - 1 <= *p_vm->sb)
+			return ERR_STACK_UNDERFLOW;
+
+		p_vm->stack[*p_vm->sp - 2] = p_vm->stack[*p_vm->sp - 2] >= p_vm->stack[*p_vm->sp - 1];
+		-- *p_vm->sp;
+
+		break;
+
+	case OP_LES:
+		if (*p_vm->sp - 1 <= *p_vm->sb)
+			return ERR_STACK_UNDERFLOW;
+
+		p_vm->stack[*p_vm->sp - 2] = p_vm->stack[*p_vm->sp - 2] < p_vm->stack[*p_vm->sp - 1];
+		-- *p_vm->sp;
+
+		break;
+
+	case OP_LEQ:
+		if (*p_vm->sp - 1 <= *p_vm->sb)
+			return ERR_STACK_UNDERFLOW;
+
+		p_vm->stack[*p_vm->sp - 2] = p_vm->stack[*p_vm->sp - 2] <= p_vm->stack[*p_vm->sp - 1];
+		-- *p_vm->sp;
+
+		break;
+
+	case OP_DUP:
+		if (*p_vm->sp >= STACK_CAPACITY)
+			return ERR_STACK_OVERFLOW;
+
+		p_vm->stack[*p_vm->sp] = p_vm->stack[*p_vm->sp - 1];
+
+		++ *p_vm->sp;
+
+		break;
+
+	case OP_SWP:
+		if (*p_vm->sp - 1 <= *p_vm->sb)
+			return ERR_STACK_UNDERFLOW;
+
+		word_t tmp = p_vm->stack[*p_vm->sp - 1];
+		p_vm->stack[*p_vm->sp - 1] = p_vm->stack[*p_vm->sp - 1];
+		p_vm->stack[*p_vm->sp - 2] = tmp;
+
+		break;
+
+	case OP_DUM: vm_dump(p_vm, stdout); break;
+	case OP_HLT: p_vm->halt = true;     break;
 
 	default: return ERR_ILLEGAL_INST;
 	};
 
+	++ *p_vm->ip;
+
 	return ERR_OK;
 }
 
-void vm_exec(struct vm *p_vm, struct inst *p_program, word_t p_size, word_t p_ep) {
+void vm_exec_from_mem(struct vm *p_vm, struct inst *p_program, word_t p_program_size, word_t p_ep) {
 	memset(p_vm, 0, sizeof(struct vm));
+
+	assert(STACK_SIZE_BYTES % sizeof(word_t) == 0);
 
 	p_vm->ac = &p_vm->regs[REG_AC];
 	p_vm->ip = &p_vm->regs[REG_IP];
@@ -203,8 +318,11 @@ void vm_exec(struct vm *p_vm, struct inst *p_program, word_t p_size, word_t p_ep
 	p_vm->cn = &p_vm->regs[REG_CN];
 	p_vm->ex = &p_vm->regs[REG_EX];
 
-	for (*p_vm->ip = p_ep; *p_vm->ip < p_size && !p_vm->halt; ++ *p_vm->ip) {
-		int ret = vm_exec_inst(p_vm, p_program[*p_vm->ip]);
+	p_vm->program      = p_program;
+	p_vm->program_size = p_program_size;
+
+	for (*p_vm->ip = p_ep; *p_vm->ip < p_vm->program_size && !p_vm->halt;) {
+		int ret = vm_exec_next_inst(p_vm);
 		if (ret != ERR_OK) {
 			fprintf(stderr, "%s (0x%016llX)\n", err_str(ret), (unsigned long long)*p_vm->ip);
 
@@ -275,7 +393,7 @@ void vm_exec_from_file(struct vm *p_vm, const char *p_path) {
 
 	fclose(file);
 
-	vm_exec(p_vm, program, size, ep);
+	vm_exec_from_mem(p_vm, program, size, ep);
 
 	free(program);
 }

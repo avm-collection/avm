@@ -9,20 +9,21 @@
 
 #include "utils.h"
 
-#define STACK_CAPACITY 0xFFFF
+#define STACK_SIZE_BYTES 0x10000
+#define STACK_CAPACITY   (STACK_SIZE_BYTES / sizeof(word_t))
 
 typedef uint64_t word_t;
 
-enum {
+enum opcode {
 	OP_NOP = 0,
 
 	OP_MOV,
-	OP_MOV_REG,
+	OP_MOR,
 
-	OP_PUSH,
-	OP_PUSH_REG,
+	OP_PSH,
+	OP_PSR,
 	OP_POP,
-	OP_POP_REG,
+	OP_POR,
 
 	OP_ADD,
 	OP_SUB,
@@ -31,11 +32,29 @@ enum {
 	OP_DIV,
 	OP_MOD,
 
-	OP_DUMP,
-	OP_HALT = 0xFF
+	OP_INC,
+	OP_DEC,
+
+	OP_JMP,
+	OP_JNZ,
+
+	OP_EQU,
+	OP_NEQ,
+	OP_GRT,
+	OP_GEQ,
+	OP_LES,
+	OP_LEQ,
+
+	OP_DUP,
+	OP_SWP,
+
+	OPS_COUNT,
+
+	OP_DUM = 0xFE,
+	OP_HLT = 0xFF
 };
 
-enum {
+enum reg {
 	REG_1 = 0,
 	REG_2,
 	REG_3,
@@ -63,7 +82,7 @@ enum {
 	REGS_COUNT
 };
 
-enum {
+enum err {
 	ERR_OK = 0,
 	ERR_STACK_OVERFLOW,
 	ERR_STACK_UNDERFLOW,
@@ -72,9 +91,12 @@ enum {
 	ERR_DIV_BY_ZERO
 };
 
+const char *err_str(enum err p_err);
+
 struct inst {
-	uint8_t op, reg;
-	word_t  data;
+	enum opcode op:  8;
+	enum reg    reg: 8;
+	word_t      data;
 };
 
 struct vm {
@@ -83,7 +105,9 @@ struct vm {
 
 	word_t *ac, *ip, *sp, *sb, *cn, *ex;
 
-	int  err;
+	struct inst *program;
+	word_t       program_size;
+
 	bool halt;
 };
 
@@ -96,7 +120,7 @@ PACK(struct file_meta {
 
 void vm_dump(struct vm *p_vm, FILE *p_file);
 
-void vm_exec(struct vm *p_vm, struct inst *p_program, word_t p_size, word_t p_ep);
+void vm_exec_from_mem(struct vm *p_vm, struct inst *p_program, word_t p_program_size, word_t p_ep);
 void vm_exec_from_file(struct vm *p_vm, const char *p_path);
 
 #endif
