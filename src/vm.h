@@ -6,6 +6,7 @@
 #include <stdio.h>   /* stderr, fputs, fputc, fprintf, FILE, fflush, fopen, fclose, fread */
 #include <stdbool.h> /* bool, true, false */
 #include <stdlib.h>  /* exit, malloc, free */
+#include <errno.h>   /* strerror, errno */
 
 #include "utils.h"
 
@@ -48,8 +49,6 @@ enum opcode {
 	OP_DUP,
 	OP_SWP,
 
-	OPS_COUNT,
-
 	OP_DUM = 0xFE,
 	OP_HLT = 0xFF
 };
@@ -72,11 +71,9 @@ enum reg {
 	REG_15,
 	REG_16,
 
-	REG_AC, /* accumulator */
 	REG_IP, /* instruction pointer */
 	REG_SP, /* stack pointer */
 	REG_SB, /* stack base pointer */
-	REG_CN, /* conditional */
 	REG_EX, /* exitcode */
 
 	REGS_COUNT
@@ -103,7 +100,7 @@ struct vm {
 	word_t stack[STACK_CAPACITY];
 	word_t regs[REGS_COUNT];
 
-	word_t *ac, *ip, *sp, *sb, *cn, *ex;
+	word_t *ip, *sp, *sb, *ex;
 
 	struct inst *program;
 	word_t       program_size;

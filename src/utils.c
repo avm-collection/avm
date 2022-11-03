@@ -1,5 +1,4 @@
 #include "utils.h"
-#include "main.h"
 
 void fatal(const char *p_fmt, ...) {
 	char    msg[1024];
@@ -9,7 +8,7 @@ void fatal(const char *p_fmt, ...) {
 	vsnprintf(msg, sizeof(msg), p_fmt, args);
 	va_end(args);
 
-	fprintf(stderr, "Error: %s\nTry '"APP_NAME" -h'\n", msg);
+	fprintf(stderr, "Fatal: %s\n", msg);
 
 	exit(EXIT_FAILURE);
 }

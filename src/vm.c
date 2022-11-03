@@ -12,6 +12,8 @@ const char *err_str(enum err p_err) {
 
 	default: UNREACHABLE();
 	}
+
+	SILENCE_RETURN_WARNING();
 }
 
 void vm_dump(struct vm *p_vm, FILE *p_file) {
@@ -311,11 +313,9 @@ void vm_exec_from_mem(struct vm *p_vm, struct inst *p_program, word_t p_program_
 
 	assert(STACK_SIZE_BYTES % sizeof(word_t) == 0);
 
-	p_vm->ac = &p_vm->regs[REG_AC];
 	p_vm->ip = &p_vm->regs[REG_IP];
 	p_vm->sp = &p_vm->regs[REG_SP];
 	p_vm->sb = &p_vm->regs[REG_SB];
-	p_vm->cn = &p_vm->regs[REG_CN];
 	p_vm->ex = &p_vm->regs[REG_EX];
 
 	p_vm->program      = p_program;
@@ -345,9 +345,9 @@ static word_t bytes_to_word(uint8_t *p_bytes) {
 }
 
 void vm_exec_from_file(struct vm *p_vm, const char *p_path) {
-	FILE *file = fopen(p_path, "r");
+	FILE *file = fopen(p_path, "rb");
 	if (file == NULL)
-		fatal("File '%s' not found", p_path);
+		fatal("Failed to open file '%s': %s", p_path, strerror(errno));
 
 	/* skip the shebang */
 	char ch = fgetc(file);
@@ -359,18 +359,18 @@ void vm_exec_from_file(struct vm *p_vm, const char *p_path) {
 	struct file_meta meta;
 	size_t ret = fread(&meta, sizeof(meta), 1, file);
 	if (ret < 1)
-		fatal("Error while reading '%s' metadata", p_path);
+		fatal("Error while reading '%s' metadata: %s", p_path, strerror(errno));
 
 	assert(sizeof(meta.magic) == 3);
 	if (strncmp(meta.magic, "AVM", 3) != 0)
-		fatal("'%s' is not in an executable AVM format", p_path);
+		fatal("'%s' is not an executable AVM binary", p_path);
 
 	if (meta.ver[0] != VERSION_MAJOR)
-		fatal("'%s' version is %i, expected %i", meta.ver[0], VERSION_MAJOR);
+		fatal("'%s' major version is %i, expected %i", p_path, meta.ver[0], VERSION_MAJOR);
 	else if (meta.ver[1] != VERSION_MINOR)
-		fatal("'%s' version is %i, expected %i", meta.ver[1], VERSION_MINOR);
+		fatal("'%s' minor version is %i, expected %i", p_path, meta.ver[1], VERSION_MINOR);
 	else if (meta.ver[2] != VERSION_PATCH)
-		fatal("'%s' version is %i, expected %i", meta.ver[2], VERSION_PATCH);
+		fatal("'%s' patch version is %i, expected %i", p_path, meta.ver[2], VERSION_PATCH);
 
 	word_t size = bytes_to_word(meta.program_size);
 	word_t ep   = bytes_to_word(meta.entry_point);
@@ -384,10 +384,10 @@ void vm_exec_from_file(struct vm *p_vm, const char *p_path) {
 
 		ret = fread(&inst, sizeof(inst), 1, file);
 		if (ret < 1)
-			fatal("Error while reading '%s' instructions", p_path);
+			fatal("'%s' incompatible instruction format", p_path);
 
-		program[i].op   = inst[0];
-		program[i].reg  = inst[1];
+		program[i].op   = (enum opcode)inst[0];
+		program[i].reg  = (enum reg)inst[1];
 		program[i].data = bytes_to_word(inst + 2);
 	}
 
