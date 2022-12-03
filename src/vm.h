@@ -16,40 +16,40 @@
 typedef uint64_t word_t;
 
 enum opcode {
-	OP_NOP = 0,
+	OP_NOP = 0x00,
 
-	OP_MOV,
-	OP_MOR,
+	OP_MOV = 0x10,
+	OP_MOR = 0x11,
 
-	OP_PSH,
-	OP_PSR,
-	OP_POP,
-	OP_POR,
+	OP_PSH = 0x12,
+	OP_PSR = 0x13,
+	OP_POP = 0x14,
+	OP_POR = 0x15,
 
-	OP_ADD,
-	OP_SUB,
+	OP_ADD = 0x20,
+	OP_SUB = 0x21,
 
-	OP_MUL,
-	OP_DIV,
-	OP_MOD,
+	OP_MUL = 0x22,
+	OP_DIV = 0x23,
+	OP_MOD = 0x24,
 
-	OP_INC,
-	OP_DEC,
+	OP_INC = 0x25,
+	OP_DEC = 0x26,
 
-	OP_JMP,
-	OP_JNZ,
+	OP_JMP = 0x30,
+	OP_JNZ = 0x31,
 
-	OP_EQU,
-	OP_NEQ,
-	OP_GRT,
-	OP_GEQ,
-	OP_LES,
-	OP_LEQ,
+	OP_EQU = 0x32,
+	OP_NEQ = 0x33,
+	OP_GRT = 0x34,
+	OP_GEQ = 0x35,
+	OP_LES = 0x36,
+	OP_LEQ = 0x37,
 
-	OP_DUP,
-	OP_SWP,
+	OP_DUP = 0x40,
+	OP_SWP = 0x41,
 
-	OP_DUM = 0xFE,
+	OP_DUM = 0xF0,
 	OP_HLT = 0xFF
 };
 
@@ -71,10 +71,10 @@ enum reg {
 	REG_15,
 	REG_16,
 
-	REG_IP, /* instruction pointer */
-	REG_SP, /* stack pointer */
-	REG_SB, /* stack base pointer */
-	REG_EX, /* exitcode */
+	REG_IP, /* Instruction pointer */
+	REG_SP, /* Stack pointer */
+	REG_SB, /* Stack base pointer */
+	REG_EX, /* Exitcode */
 
 	REGS_COUNT
 };

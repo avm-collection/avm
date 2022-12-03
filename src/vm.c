@@ -129,6 +129,9 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 				return ERR_INVALID_ACCESS;
 
 			*reg = p_vm->stack[-- (*p_vm->sp)];
+
+			if (*p_vm->sp == 12 || *p_vm->sp == 10)
+				printf("%i INTO %i\n", (int)*reg, (int)inst->reg);
 		}
 
 		break;

@@ -6,6 +6,8 @@
 #include "utils.h"
 #include "vm.h"
 
+// 1.0.0: First release, has basic stack operations and logic
+
 #define VERSION_MAJOR 1
 #define VERSION_MINOR 0
 #define VERSION_PATCH 0

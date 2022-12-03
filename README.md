@@ -18,17 +18,33 @@
 ## Table of contents
 * [Introduction](#introduction)
 * [Quickstart](#quickstart)
+* [Milestones](#milestones)
+* [Documentation](#documentation)
 * [Bugs](#bugs)
 * [Make](#make)
 
 ## Introduction
 A simple unfinished stack based virtual machine written in C.
 
+## Write a program
+You probably do not want to write programs in binary, so you can find the assembler with examples [here](https://github.com/LordOfTrident/anasm).
+If you DO want to write programs in binary, you can at least use my [binary editor](https://github.com/LordOfTrident/binw) :)
+
 ## Quickstart
 ```sh
 $ make
-$ ./bin/app examples/7plus5.avm
+$ make install
+$ avm <PROGRAM>
 ```
+
+## Milestones
+- [X] Basic stack operators
+- [X] Executing from files
+- [X] Conditional instructions, jumps
+- [ ] File reading, IO
+
+## Documentation
+Coming soon.
 
 ## Bugs
 If you find any bugs, please create an issue and report them.
