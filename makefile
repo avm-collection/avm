@@ -2,25 +2,28 @@ SRC  = $(wildcard src/*.c)
 DEPS = $(wildcard src/*.h)
 OBJ  = $(addsuffix .o,$(subst src/,bin/,$(basename $(SRC))))
 
-OUT = ./bin/app
+BIN     = ./bin
+OUT     = $(BIN)/app
+INSTALL = /usr/bin/avm
 
 CC     = gcc
-STD    = c99
-CFLAGS = -O3 -std=$(STD) -Wall -Wextra -Werror \
-         -pedantic -Wno-deprecated-declarations
-LIBS   =
+CSTD   = c99
+CFLAGS = -static -Og -std=$(CSTD) -Wall -Wextra -Werror -pedantic -Wno-deprecated-declarations
 
-compile: ./bin $(OBJ) $(SRC)
+compile: $(BIN) $(OBJ) $(SRC)
 	$(CC) $(CFLAGS) -o $(OUT) $(OBJ) $(LIBS)
 
 bin/%.o: src/%.c $(DEPS)
 	$(CC) -c $< $(CFLAGS) -o $@
 
-./bin:
+$(BIN):
 	mkdir -p bin
 
+install:
+	cp $(OUT) $(INSTALL)
+
 clean:
-	rm -r ./bin/*
+	rm -r $(BIN)/*
 
 all:
-	@echo compile, clean
+	@echo compile, install, clean
