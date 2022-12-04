@@ -129,9 +129,6 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 				return ERR_INVALID_ACCESS;
 
 			*reg = p_vm->stack[-- (*p_vm->sp)];
-
-			if (*p_vm->sp == 12 || *p_vm->sp == 10)
-				printf("%i INTO %i\n", (int)*reg, (int)inst->reg);
 		}
 
 		break;
@@ -369,11 +366,14 @@ void vm_exec_from_file(struct vm *p_vm, const char *p_path) {
 		fatal("'%s' is not an executable AVM binary", p_path);
 
 	if (meta.ver[0] != VERSION_MAJOR)
-		fatal("'%s' major version is %i, expected %i", p_path, meta.ver[0], VERSION_MAJOR);
+		warning("'%s' major version is %i, your VM major version is %i",
+		        p_path, meta.ver[0], VERSION_MAJOR);
 	else if (meta.ver[1] != VERSION_MINOR)
-		fatal("'%s' minor version is %i, expected %i", p_path, meta.ver[1], VERSION_MINOR);
+		warning("'%s' minor version is %i, your VM minor version is %i",
+		        p_path, meta.ver[1], VERSION_MINOR);
 	else if (meta.ver[2] != VERSION_PATCH)
-		fatal("'%s' patch version is %i, expected %i", p_path, meta.ver[2], VERSION_PATCH);
+		warning("'%s' patch version is %i, your VM patch version is %i",
+		        p_path, meta.ver[2], VERSION_PATCH);
 
 	word_t size = bytes_to_word(meta.program_size);
 	word_t ep   = bytes_to_word(meta.entry_point);

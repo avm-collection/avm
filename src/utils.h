@@ -24,5 +24,6 @@
 	exit(EXIT_FAILURE)
 
 void fatal(const char *p_fmt, ...);
+void warning(const char *p_fmt, ...);
 
 #endif
