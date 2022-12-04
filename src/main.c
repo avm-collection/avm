@@ -27,7 +27,7 @@ static const char *compiler(void) {
 }
 
 void usage(void) {
-	puts("Usage: "APP_NAME" [FILE] [OPTIONS]\n"
+	puts("Usage: "APP_NAME" [OPTIONS] [FILE]\n"
 	     "Options:\n"
 	     "  -h, --help     Show this message\n"
 	     "  -v, --version  Print the version");
