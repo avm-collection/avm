@@ -46,6 +46,9 @@ enum opcode {
 	OP_LES = 0x36,
 	OP_LEQ = 0x37,
 
+	OP_CAL = 0x38,
+	OP_RET = 0x39,
+
 	OP_DUP = 0x40,
 	OP_SWP = 0x41,
 

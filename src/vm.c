@@ -277,6 +277,27 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 
 		break;
 
+	case OP_CAL:
+		if (inst->data >= p_vm->program_size)
+			return ERR_INVALID_ACCESS;
+
+		if (*p_vm->sp >= STACK_CAPACITY)
+			return ERR_STACK_OVERFLOW;
+
+		p_vm->stack[(*p_vm->sp) ++] = *p_vm->ip + 1;
+
+		*p_vm->ip = inst->data - 1;
+
+		break;
+
+	case OP_RET:
+		if (*p_vm->sp <= *p_vm->sb)
+			return ERR_STACK_UNDERFLOW;
+
+		*p_vm->ip = p_vm->stack[-- (*p_vm->sp)] - 1;
+
+		break;
+
 	case OP_DUP:
 		if (*p_vm->sp >= STACK_CAPACITY)
 			return ERR_STACK_OVERFLOW;
