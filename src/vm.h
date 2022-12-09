@@ -108,7 +108,7 @@ struct vm {
 	struct inst *program;
 	word_t       program_size;
 
-	bool halt;
+	bool halt, warnings;
 };
 
 PACK(struct file_meta {

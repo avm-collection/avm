@@ -9,10 +9,11 @@
 // 0.1.0: Basic stack operations
 // 0.2.0: Loops and logic
 // 0.3.0: cal and ret instructions
+// 0.3.1: Parameters improvements
 
 #define VERSION_MAJOR 0
 #define VERSION_MINOR 3
-#define VERSION_PATCH 0
+#define VERSION_PATCH 1
 
 #define APP_NAME "avm"
 

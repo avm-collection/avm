@@ -27,10 +27,11 @@ static const char *compiler(void) {
 }
 
 void usage(void) {
-	puts("Usage: "APP_NAME" [OPTIONS] [FILE]\n"
+	puts("Usage: "APP_NAME" [FILE] [OPTIONS]\n"
 	     "Options:\n"
 	     "  -h, --help     Show this message\n"
-	     "  -v, --version  Print the version");
+	     "  -v, --version  Print the version\n"
+	     "  --noW          Dont show warnings");
 
 	exit(EXIT_SUCCESS);
 }
@@ -63,13 +64,16 @@ void try(const char *p_flag) {
 }
 
 int main(int p_argc, char **p_argv) {
-	const char *path = NULL;
+	const char *path     = NULL;
+	bool        warnings = true;
 
 	for (int i = 1; i < p_argc; ++ i) {
 		if (strcmp(p_argv[i], "-h") == 0 || strcmp(p_argv[i], "--help") == 0)
 			usage();
 		else if (strcmp(p_argv[i], "-v") == 0 || strcmp(p_argv[i], "--version") == 0)
 			version();
+		else if (strcmp(p_argv[i], "--noW") == 0)
+			warnings = false;
 		else if (path != NULL) {
 			error("Unexpected argument '%s'", p_argv[i]);
 			try("-h");
@@ -86,7 +90,7 @@ int main(int p_argc, char **p_argv) {
 		exit(EXIT_FAILURE);
 	}
 
-	struct vm vm;
+	struct vm vm = {.warnings = warnings};
 	vm_exec_from_file(&vm, path);
 
 	return *vm.ex;

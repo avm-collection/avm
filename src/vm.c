@@ -386,15 +386,17 @@ void vm_exec_from_file(struct vm *p_vm, const char *p_path) {
 	if (strncmp(meta.magic, "AVM", 3) != 0)
 		fatal("'%s' is not an executable AVM binary", p_path);
 
-	if (meta.ver[0] != VERSION_MAJOR)
+	if (meta.ver[0] != VERSION_MAJOR && p_vm->warnings)
 		warning("'%s' major version is %i, your VM major version is %i",
 		        p_path, meta.ver[0], VERSION_MAJOR);
-	else if (meta.ver[1] != VERSION_MINOR)
+	else if (meta.ver[1] != VERSION_MINOR && p_vm->warnings)
 		warning("'%s' minor version is %i, your VM minor version is %i",
 		        p_path, meta.ver[1], VERSION_MINOR);
-	else if (meta.ver[2] != VERSION_PATCH)
-		warning("'%s' patch version is %i, your VM patch version is %i",
-		        p_path, meta.ver[2], VERSION_PATCH);
+
+	// Ignore the patch version
+	// else if (meta.ver[2] != VERSION_PATCH)
+	// 	warning("'%s' patch version is %i, your VM patch version is %i",
+	// 	        p_path, meta.ver[2], VERSION_PATCH);
 
 	word_t size = bytes_to_word(meta.program_size);
 	word_t ep   = bytes_to_word(meta.entry_point);
