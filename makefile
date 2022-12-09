@@ -10,7 +10,7 @@ CC     = gcc
 CSTD   = c99
 CFLAGS = -static -Og -std=$(CSTD) -Wall -Wextra -Werror -pedantic -Wno-deprecated-declarations
 
-compile: $(BIN) $(OBJ) $(SRC)
+$(OUT): $(BIN) $(OBJ) $(SRC)
 	$(CC) $(CFLAGS) -o $(OUT) $(OBJ) $(LIBS)
 
 bin/%.o: src/%.c $(DEPS)
@@ -19,7 +19,7 @@ bin/%.o: src/%.c $(DEPS)
 $(BIN):
 	mkdir -p bin
 
-install:
+install: $(OUT)
 	cp $(OUT) $(INSTALL)
 
 clean:
