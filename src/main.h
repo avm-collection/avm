@@ -6,10 +6,12 @@
 #include "utils.h"
 #include "vm.h"
 
-// 1.0.0: First release, has basic stack operations and logic
+// 0.1.0: Basic stack operations
+// 0.2.0: Loops and logic
+// 0.3.0: cal and ret instructions
 
-#define VERSION_MAJOR 1
-#define VERSION_MINOR 0
+#define VERSION_MAJOR 0
+#define VERSION_MINOR 3
 #define VERSION_PATCH 0
 
 #define APP_NAME "avm"
