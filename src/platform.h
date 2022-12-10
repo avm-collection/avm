@@ -2,25 +2,25 @@
 #define PLATFORM_H__HEADER_GUARD__
 
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-#	define __PLATFORM_WINDOWS__
+#	define PLATFORM_WINDOWS
 #elif defined(__APPLE__)
-#	define __PLATFORM_APPLE__
+#	define PLATFORM_APPLE
 #elif defined(__linux__) || defined(__gnu_linux__) || defined(linux)
-#	define __PLATFORM_LINUX__
+#	define PLATFORM_LINUX
 #elif defined(__unix__) || defined(unix)
-#	define __PLATFORM_UNIX__
+#	define PLATFORM_UNIX
 #else
-#	define __PLATFORM_UNKNOWN__
+#	define PLATFORM_UNKNOWN
 #endif
 
 #if defined(__clang__)
-#	define __COMPILER_CLANG__
+#	define COMPILER_CLANG
 #elif defined(__GNUC__)
-#	define __COMPILER_GCC__
+#	define COMPILER_GCC
 #elif defined(_MSC_VER)
-#	define __COMPILER_MSVC__
+#	define COMPILER_MSVC
 #else
-#	define __COMPILER_UNKNOWN__
+#	define COMPILER_UNKNOWN
 #endif
 
 #endif

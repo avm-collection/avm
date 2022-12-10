@@ -7,7 +7,7 @@ OUT     = $(BIN)/app
 INSTALL = /usr/bin/avm
 
 CC     = gcc
-CSTD   = c99
+CSTD   = c11
 CFLAGS = -static -Og -std=$(CSTD) -Wall -Wextra -Werror -pedantic -Wno-deprecated-declarations
 
 $(OUT): $(BIN) $(OBJ) $(SRC)
