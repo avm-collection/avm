@@ -27,12 +27,14 @@ static const char *compiler(void) {
 }
 
 void usage(void) {
-	puts("Github: "GITHUB_LINK"\n"
-	     "Usage: "APP_NAME" [FILE] [OPTIONS]\n"
-	     "Options:\n"
-	     "  -h, --help     Show this message\n"
-	     "  -v, --version  Print the version\n"
-	     "  --noW          Dont show warnings");
+	printf(ASCII_LOGO" v%i.%i.%i\n\n"
+	       "Github: "GITHUB_LINK"\n"
+	       "Usage: "APP_NAME" [FILE] [OPTIONS]\n"
+	       "Options:\n"
+	       "  -h, --help     Show this message\n"
+	       "  -v, --version  Print the version\n"
+	       "  --noW          Dont show warnings",
+	       VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
 
 	exit(EXIT_SUCCESS);
 }

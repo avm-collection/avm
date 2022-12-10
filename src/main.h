@@ -12,6 +12,7 @@
 // 0.3.0: cal and ret instructions
 // 0.3.1: Parameters improvements
 // 0.4.1: Add float and signed instructions, debug print instructions
+// 0.4.2: Fix platform and compiler detection
 
 void usage(void);
 void version(void);
