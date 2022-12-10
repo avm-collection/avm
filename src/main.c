@@ -27,7 +27,8 @@ static const char *compiler(void) {
 }
 
 void usage(void) {
-	puts("Usage: "APP_NAME" [FILE] [OPTIONS]\n"
+	puts("Github: "GITHUB_LINK"\n"
+	     "Usage: "APP_NAME" [FILE] [OPTIONS]\n"
 	     "Options:\n"
 	     "  -h, --help     Show this message\n"
 	     "  -v, --version  Print the version\n"

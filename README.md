@@ -6,11 +6,11 @@
 	<a href="./LICENSE">
 		<img alt="License" src="https://img.shields.io/badge/license-GPL-blue?color=7aca00"/>
 	</a>
-	<a href="https://github.com/LordOfTrident/avm/issues">
-		<img alt="Issues" src="https://img.shields.io/github/issues/LordOfTrident/avm?color=0088ff"/>
+	<a href="https://github.com/avm-collection/avm/issues">
+		<img alt="Issues" src="https://img.shields.io/github/issues/avm-collection/avm?color=0088ff"/>
 	</a>
-	<a href="https://github.com/LordOfTrident/avm/pulls">
-		<img alt="GitHub pull requests" src="https://img.shields.io/github/issues-pr/LordOfTrident/avm?color=0088ff"/>
+	<a href="https://github.com/avm-collection/avm/pulls">
+		<img alt="GitHub pull requests" src="https://img.shields.io/github/issues-pr/avm-collection/avm?color=0088ff"/>
 	</a>
 	<br><br><br>
 </p>
@@ -27,8 +27,8 @@
 A simple unfinished stack based virtual machine written in C.
 
 ## Write a program
-You probably do not want to write programs in binary, so you can find the assembler with examples [here](https://github.com/LordOfTrident/anasm).
-If you DO want to write programs in binary, you can at least use my [binary editor](https://github.com/LordOfTrident/binw) :)
+You probably do not want to write programs in binary, so you can find the assembler with examples [here](https://github.com/avm-collection/anasm).
+If you DO want to write programs in binary, you can at least use my [binary editor](https://github.com/avm-collection/binw) :)
 
 ## Quickstart
 ```sh
