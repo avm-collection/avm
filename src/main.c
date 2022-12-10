@@ -33,7 +33,7 @@ void usage(void) {
 	       "Options:\n"
 	       "  -h, --help     Show this message\n"
 	       "  -v, --version  Print the version\n"
-	       "  --noW          Dont show warnings",
+	       "  --noW          Dont show warnings\n",
 	       VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
 
 	exit(EXIT_SUCCESS);
