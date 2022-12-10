@@ -1,13 +1,13 @@
 #include "main.h"
 
 static const char *platform(void) {
-#if defined(__PLATFORM_WINDOWS__)
+#if defined(PLATFORM_WINDOWS)
 	return "Windows";
-#elif defined(__PLATFORM_APPLE__)
+#elif defined(PLATFORM_APPLE)
 	return "Apple";
-#elif defined(__PLATFORM_LINUX__)
+#elif defined(PLATFORM_LINUX)
 	return "Linux";
-#elif defined(__PLATFORM_UNIX__)
+#elif defined(PLATFORM_UNIX)
 	return "Unix";
 #else
 	return "Unknown";
@@ -15,11 +15,11 @@ static const char *platform(void) {
 }
 
 static const char *compiler(void) {
-#if defined(__COMPILER_GCC__)
+#if defined(COMPILER_GCC)
 	return "gcc";
-#elif defined(__COMPILER_CLANG__)
+#elif defined(COMPILER_CLANG)
 	return "clang";
-#elif defined(__COMPILER_MSVC__)
+#elif defined(COMPILER_MSVC)
 	return "MSVC";
 #else
 	return "Unknown";
