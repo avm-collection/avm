@@ -28,7 +28,7 @@ A simple unfinished stack based virtual machine written in C.
 
 ## Write a program
 You probably do not want to write programs in binary, so you can find the assembler with examples [here](https://github.com/avm-collection/anasm).
-If you DO want to write programs in binary, you can at least use my [binary editor](https://github.com/avm-collection/binw) :)
+If you DO want to write programs in binary, you can at least use my [binary editor](https://github.com/LordOfTrident/binw) :)
 
 ## Quickstart
 ```sh
