@@ -93,8 +93,10 @@ int main(int p_argc, char **p_argv) {
 		exit(EXIT_FAILURE);
 	}
 
-	struct vm vm = {.warnings = warnings};
+	struct vm vm;
+	vm_init(&vm, warnings);
 	vm_exec_from_file(&vm, path);
+	vm_destroy(&vm);
 
 	return vm.ex;
 }

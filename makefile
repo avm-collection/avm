@@ -8,7 +8,7 @@ INSTALL = /usr/bin/avm
 
 CC     = gcc
 CSTD   = c11
-CFLAGS = -static -Og -std=$(CSTD) -Wall -Wextra -Werror -pedantic -Wno-deprecated-declarations
+CFLAGS = -Og -std=$(CSTD) -Wall -Wextra -Werror -pedantic -Wno-deprecated-declarations
 
 $(OUT): $(BIN) $(OBJ) $(SRC)
 	$(CC) $(CFLAGS) -o $(OUT) $(OBJ) $(LIBS)

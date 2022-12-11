@@ -15,12 +15,36 @@ const char *err_str(enum err p_err) {
 	SILENCE_RETURN_WARNING();
 }
 
+void vm_init(struct vm *p_vm, bool p_warnings) {
+	memset(p_vm, 0, sizeof(struct vm));
+	p_vm->warnings = p_warnings;
+
+	p_vm->stack = (value_t*)malloc(STACK_SIZE_BYTES);
+	if (p_vm->stack == NULL) {
+		fprintf(stderr, "malloc() fail "__FILE__":%i\n", __LINE__);
+
+		exit(EXIT_FAILURE);
+	}
+
+	p_vm->call_stack = (word_t*)malloc(CALL_STACK_SIZE_BYTES);
+	if (p_vm->call_stack == NULL) {
+		fprintf(stderr, "malloc() fail at "__FILE__":%i\n", __LINE__);
+
+		exit(EXIT_FAILURE);
+	}
+}
+
+void vm_destroy(struct vm *p_vm) {
+	free(p_vm->stack);
+	free(p_vm->call_stack);
+}
+
 void vm_dump(struct vm *p_vm, FILE *p_file) {
 	fputs("  REGS\n", p_file);
-	fprintf(p_file, "IP %016llX\n", (long long unsigned)p_vm->ip);
-	fprintf(p_file, "SP %016llX\n", (long long unsigned)p_vm->sp);
-	fprintf(p_file, "SB %016llX\n", (long long unsigned)p_vm->sb);
-	fprintf(p_file, "EX %016llX\n", (long long unsigned)p_vm->ex);
+	fprintf(p_file, "IP %"FMT_HEX"\n", AS_FMT_HEX(p_vm->ip));
+	fprintf(p_file, "SP %"FMT_HEX"\n", AS_FMT_HEX(p_vm->sp));
+	fprintf(p_file, "SB %"FMT_HEX"\n", AS_FMT_HEX(p_vm->sb));
+	fprintf(p_file, "EX %"FMT_HEX"\n", AS_FMT_HEX(p_vm->ex));
 
 	fputs("\n  STACK\n", p_file);
 
@@ -29,7 +53,7 @@ void vm_dump(struct vm *p_vm, FILE *p_file) {
 	else {
 		int c = 0;
 		for (word_t i = p_vm->sb; i < p_vm->sp; ++ i) {
-			fprintf(p_file, "%016llX ", (long long unsigned)p_vm->stack[i].u64);
+			fprintf(p_file, "%"FMT_HEX" ", AS_FMT_HEX(p_vm->stack[i].u64));
 
 			if ((c + 1) % 4 == 0)
 				fputc('\n', p_file);
@@ -44,6 +68,13 @@ void vm_dump(struct vm *p_vm, FILE *p_file) {
 	fflush(p_file);
 }
 
+void vm_dump_call_stack(struct vm *p_vm, FILE *p_file) {
+	fputs("  CALL STACK\n", p_file);
+
+	for (word_t i = 0; i < p_vm->cs; ++ i)
+		fprintf(p_file, "%"FMT_HEX"\n", AS_FMT_HEX(p_vm->stack[i].u64));
+}
+
 static int vm_exec_next_inst(struct vm *p_vm) {
 	struct inst *inst = &p_vm->program[p_vm->ip];
 
@@ -54,7 +85,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		if (p_vm->sp >= STACK_CAPACITY)
 			return ERR_STACK_OVERFLOW;
 
-		p_vm->stack[(p_vm->sp) ++].u64 = inst->data.u64;
+		p_vm->stack[p_vm->sp ++].u64 = inst->data.u64;
 
 		break;
 
@@ -391,21 +422,20 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 	case OP_CAL:
 		if (inst->data.u64 >= p_vm->program_size)
 			return ERR_INVALID_ACCESS;
+		else if (p_vm->cs >= CALL_STACK_CAPACITY)
+			return ERR_CALL_STACK_OVERFLOW;
 
-		if (p_vm->sp >= STACK_CAPACITY)
-			return ERR_STACK_OVERFLOW;
-
-		p_vm->stack[(p_vm->sp) ++].u64 = p_vm->ip + 1;
+		p_vm->call_stack[p_vm->cs ++] = p_vm->ip + 1;
 
 		p_vm->ip = inst->data.u64 - 1;
 
 		break;
 
 	case OP_RET:
-		if (p_vm->sp <= p_vm->sb)
-			return ERR_STACK_UNDERFLOW;
+		if (p_vm->cs <= 0)
+			return ERR_CALL_STACK_UNDERFLOW;
 
-		p_vm->ip = p_vm->stack[-- (p_vm->sp)].u64 - 1;
+		p_vm->ip = p_vm->call_stack[-- p_vm->cs] - 1;
 
 		break;
 
@@ -438,9 +468,9 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 			return ERR_STACK_OVERFLOW;
 
 		if (p_vm->sp <= p_vm->sb)
-			p_vm->stack[(p_vm->sp) ++].u64 = 1;
+			p_vm->stack[p_vm->sp ++].u64 = 1;
 		else
-			p_vm->stack[(p_vm->sp) ++].u64 = 0;
+			p_vm->stack[p_vm->sp ++].u64 = 0;
 
 		break;
 
@@ -449,7 +479,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		if (p_vm->sp <= p_vm->sb)
 			return ERR_STACK_UNDERFLOW;
 
-		printf("%i\n", (int)p_vm->stack[-- (p_vm->sp)].i64);
+		printf("%i\n", (int)p_vm->stack[-- p_vm->sp].i64);
 
 		break;
 
@@ -457,7 +487,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		if (p_vm->sp <= p_vm->sb)
 			return ERR_STACK_UNDERFLOW;
 
-		printf("%f\n", (float)p_vm->stack[-- (p_vm->sp)].f64);
+		printf("%f\n", (float)p_vm->stack[-- p_vm->sp].f64);
 
 		break;
 
@@ -479,8 +509,6 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 }
 
 void vm_exec_from_mem(struct vm *p_vm, struct inst *p_program, word_t p_program_size, word_t p_ep) {
-	memset(p_vm, 0, sizeof(struct vm));
-
 	p_vm->program      = p_program;
 	p_vm->program_size = p_program_size;
 
@@ -488,6 +516,7 @@ void vm_exec_from_mem(struct vm *p_vm, struct inst *p_program, word_t p_program_
 		int ret = vm_exec_next_inst(p_vm);
 		if (ret != ERR_OK) {
 			fprintf(stderr, "%s (0x%016llX)\n", err_str(ret), (unsigned long long)p_vm->ip);
+			vm_dump_call_stack(p_vm, stderr);
 
 			exit(ret);
 		}

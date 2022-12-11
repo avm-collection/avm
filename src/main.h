@@ -17,6 +17,8 @@
  * 1.4.2: Remove registers from instructions, from the VM and
  *        remove register manipulation instructions
  * 1.5.2: Improve swap and dup instructions
+ * 1.5.3: Allocate the stack on the heap
+ * 1.6.3: Add a call stack
  *
  */
 

@@ -5,7 +5,7 @@
 #include <string.h>  /* memset, strncmp */
 #include <stdio.h>   /* stderr, fputs, fputc, fprintf, FILE, fflush, fopen, fclose, fread */
 #include <stdbool.h> /* bool, true, false */
-#include <stdlib.h>  /* exit, malloc, free */
+#include <stdlib.h>  /* exit, malloc, free, EXIT_FAILURE */
 #include <errno.h>   /* strerror, errno */
 
 #include "config.h"
@@ -20,7 +20,13 @@
 #endif
 
 #define STACK_SIZE_BYTES 0x10000
-#define STACK_CAPACITY   (STACK_SIZE_BYTES / sizeof(word_t))
+#define STACK_CAPACITY   (STACK_SIZE_BYTES / sizeof(value_t))
+
+#define CALL_STACK_SIZE_BYTES 0x1000
+#define CALL_STACK_CAPACITY   (CALL_STACK_SIZE_BYTES / sizeof(word_t))
+
+#define FMT_HEX         "016llX"
+#define AS_FMT_HEX(P_X) (long long unsigned)(P_X)
 
 typedef uint64_t word_t;
 
@@ -113,6 +119,8 @@ enum err {
 	ERR_OK = 0,
 	ERR_STACK_OVERFLOW,
 	ERR_STACK_UNDERFLOW,
+	ERR_CALL_STACK_OVERFLOW,
+	ERR_CALL_STACK_UNDERFLOW,
 	ERR_ILLEGAL_INST,
 	ERR_INVALID_ACCESS,
 	ERR_DIV_BY_ZERO
@@ -126,8 +134,9 @@ PACK(struct inst {
 });
 
 struct vm {
-	value_t stack[STACK_CAPACITY];
-	word_t  ip, sp, sb, ex; /* Registers */
+	value_t *stack;
+	word_t  *call_stack;
+	word_t   ip, sp, sb, ex, cs; /* Registers */
 
 	struct inst *program;
 	word_t       program_size;
@@ -142,7 +151,11 @@ PACK(struct file_meta {
 	uint8_t entry_point[sizeof(word_t)];
 });
 
+void vm_init(struct vm *p_vm, bool p_warnings);
+void vm_destroy(struct vm *p_vm);
+
 void vm_dump(struct vm *p_vm, FILE *p_file);
+void vm_dump_call_stack(struct vm *p_vm, FILE *p_file);
 
 void vm_exec_from_mem(struct vm *p_vm, struct inst *p_program, word_t p_program_size, word_t p_ep);
 void vm_exec_from_file(struct vm *p_vm, const char *p_path);
