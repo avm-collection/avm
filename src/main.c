@@ -96,5 +96,5 @@ int main(int p_argc, char **p_argv) {
 	struct vm vm = {.warnings = warnings};
 	vm_exec_from_file(&vm, path);
 
-	return *vm.ex;
+	return vm.ex;
 }

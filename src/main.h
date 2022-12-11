@@ -7,12 +7,18 @@
 #include "platform.h"
 #include "vm.h"
 
-// 0.1.0: Basic stack operations
-// 0.2.0: Loops and logic
-// 0.3.0: cal and ret instructions
-// 0.3.1: Parameters improvements
-// 0.4.1: Add float and signed instructions, debug print instructions
-// 0.4.2: Fix platform and compiler detection
+/*
+ * 0.1.0: Basic stack operations
+ * 0.2.0: Loops and logic
+ * 0.3.0: cal and ret instructions
+ * 0.3.1: Parameters improvements
+ * 0.4.1: Add float and signed instructions, debug print instructions
+ * 0.4.2: Fix platform and compiler detection
+ * 1.4.2: Remove registers from instructions, from the VM and
+ *        remove register manipulation instructions
+ * 1.5.2: Improve swap and dup instructions
+ *
+ */
 
 void usage(void);
 void version(void);

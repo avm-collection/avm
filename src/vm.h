@@ -40,15 +40,9 @@ static_assert(sizeof(value_t) == sizeof(word_t));
 enum opcode {
 	OP_NOP = 0x00,
 
-	/* Move */
-	OP_MOV = 0x10,
-	OP_MOR = 0x11,
-
 	/* Push, pop */
-	OP_PSH = 0x12,
-	OP_PSR = 0x13,
-	OP_POP = 0x14,
-	OP_POR = 0x15,
+	OP_PSH = 0x10,
+	OP_POP = 0x11,
 
 	/* Arithmetic */
 	OP_ADD = 0x20,
@@ -58,8 +52,8 @@ enum opcode {
 	OP_DIV = 0x23,
 	OP_MOD = 0x24,
 
-	OP_DEC = 0x25,
-	OP_INC = 0x26,
+	OP_INC = 0x25,
+	OP_DEC = 0x26,
 
 	/* Float arithmetic */
 	OP_FAD = 0x27,
@@ -115,32 +109,6 @@ enum opcode {
 	OP_HLT = 0xFF
 };
 
-enum reg {
-	REG_1 = 0,
-	REG_2,
-	REG_3,
-	REG_4,
-	REG_5,
-	REG_6,
-	REG_7,
-	REG_8,
-	REG_9,
-	REG_10,
-	REG_11,
-	REG_12,
-	REG_13,
-	REG_14,
-	REG_15,
-	REG_16,
-
-	REG_IP, /* Instruction pointer */
-	REG_SP, /* Stack pointer */
-	REG_SB, /* Stack base pointer */
-	REG_EX, /* Exitcode */
-
-	REGS_COUNT
-};
-
 enum err {
 	ERR_OK = 0,
 	ERR_STACK_OVERFLOW,
@@ -152,17 +120,14 @@ enum err {
 
 const char *err_str(enum err p_err);
 
-struct inst {
-	enum opcode op:  8;
-	enum reg    reg: 8;
+PACK(struct inst {
+	enum opcode op: 8;
 	value_t     data;
-};
+});
 
 struct vm {
 	value_t stack[STACK_CAPACITY];
-	word_t  regs[REGS_COUNT];
-
-	word_t *ip, *sp, *sb, *ex;
+	word_t  ip, sp, sb, ex; /* Registers */
 
 	struct inst *program;
 	word_t       program_size;

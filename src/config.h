@@ -4,8 +4,8 @@
 #define APP_NAME    "avm"
 #define GITHUB_LINK "https://github.com/avm-collection/avm"
 
-#define VERSION_MAJOR 0
-#define VERSION_MINOR 4
+#define VERSION_MAJOR 1
+#define VERSION_MINOR 5
 #define VERSION_PATCH 2
 
 #define ASCII_LOGO \
