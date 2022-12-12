@@ -6,7 +6,7 @@
 
 #define VERSION_MAJOR 1
 #define VERSION_MINOR 6
-#define VERSION_PATCH 3
+#define VERSION_PATCH 4
 
 #define ASCII_LOGO \
 	" __________________ \n" \

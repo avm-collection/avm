@@ -558,10 +558,10 @@ void vm_exec_from_file(struct vm *p_vm, const char *p_path) {
 		fatal("'%s' is not an executable AVM binary", p_path);
 
 	if (meta.ver[0] != VERSION_MAJOR && p_vm->warnings)
-		warning("'%s' major version is %i, your VM major version is %i",
+		warning("'%s' major version is %i, your avm major version is %i",
 		        p_path, meta.ver[0], VERSION_MAJOR);
-	else if (meta.ver[1] != VERSION_MINOR && p_vm->warnings)
-		warning("'%s' minor version is %i, your VM minor version is %i",
+	else if (meta.ver[1] > VERSION_MINOR && p_vm->warnings)
+		warning("'%s' minor version is %i, greater than your avm minor version which is %i",
 		        p_path, meta.ver[1], VERSION_MINOR);
 
 	// Ignore the patch version

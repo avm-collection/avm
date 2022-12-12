@@ -19,6 +19,8 @@
  * 1.5.2: Improve swap and dup instructions
  * 1.5.3: Allocate the stack on the heap
  * 1.6.3: Add a call stack
+ * 1.6.4: Only give a minor version warning if the exe minor version
+ *        is greater than the avm minor version
  *
  */
 
