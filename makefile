@@ -14,7 +14,7 @@ shared: $(BIN) $(OBJ) $(SRC)
 	$(CC) $(CFLAGS) -o $(OUT) $(OBJ) $(LIBS)
 
 static: $(BIN) $(OBJ) $(SRC)
-	$(CC) $(CFLAGS) -o $(OUT) $(OBJ) $(LIBS)
+	$(CC) -static $(CFLAGS) -o $(OUT) $(OBJ) $(LIBS)
 
 bin/%.o: src/%.c $(DEPS)
 	$(CC) -c $< $(CFLAGS) -o $@
