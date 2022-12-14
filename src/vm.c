@@ -662,9 +662,23 @@ static void dump_inst(FILE *p_file, struct inst *p_inst) {
 }
 
 void vm_debug(struct vm *p_vm) {
+#ifdef USES_READLINE
+	using_history();
+	rl_set_signals();
+#else
 	char in[256] = {0};
+#endif
 
 	while (p_vm->ip < p_vm->program_size && !p_vm->halt) {
+#ifdef USES_READLINE
+		char *in = readline(PROMPT);
+		if (in == NULL) {
+			VM_ERROR(stderr, "Failed to read input");
+			exit(EXIT_FAILURE);
+		}
+
+		add_history(in);
+#else
 		set_fg_color(COLOR_BRIGHT_BLUE, stdout);
 		fputs("(help) ", stdout);
 		set_fg_color(COLOR_BRIGHT_MAGENTA, stdout);
@@ -675,6 +689,7 @@ void vm_debug(struct vm *p_vm) {
 			VM_ERROR(stderr, "Failed to read input");
 			exit(EXIT_FAILURE);
 		}
+#endif
 
 		char        *cmd  = strtrim(in);
 		struct inst *inst = &p_vm->program[p_vm->ip];
@@ -716,6 +731,10 @@ void vm_debug(struct vm *p_vm) {
 			dump_inst(stdout, p_vm->ip + 1 >= p_vm->program_size? NULL : inst + 1);
 		else
 			VM_ERROR(stderr, "Unknown command '%s'", cmd);
+
+#ifdef USES_READLINE
+		free(in);
+#endif
 	}
 }
 

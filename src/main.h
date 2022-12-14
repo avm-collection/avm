@@ -22,6 +22,7 @@
  *        is greater than the avm minor version
  * 1.7.4: Improve vm messages, panic output
  * 1.8.4: Add a debugging mode
+ * 1.8.5: Use readline when possible
  *
  */
 

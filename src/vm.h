@@ -11,12 +11,21 @@
 #include <assert.h>  /* static_assert, assert */
 
 #include "config.h"
+
+#ifdef USES_READLINE
+#	include <readline/readline.h> /* readline, rl_set_signals */
+#	include <readline/history.h>  /* add_history, using_history */
+
+#	define RL_ESC_SEQ(P_SEQ) "\001"P_SEQ"\002"
+#	define PROMPT RL_ESC_SEQ("\x1b[94m")"(help) "RL_ESC_SEQ("\x1b[95m")"> "RL_ESC_SEQ("\x1b[0m")
+#endif
+
 #include "utils.h"
 #include "color.h"
 
-#if defined(__COMPILER_GCC__) || defined(__COMPILER_CLANG__)
+#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
 #	define PACK(p_struct) p_struct __attribute__((__packed__))
-#elif defined(__COMPILER_MSVC__)
+#elif defined(COMPILER_MSVC)
 #	define PACK(p_struct) __pragma(pack(push, 1)) p_struct __pragma(pack(pop))
 #else
 #	define PACK(p_struct) p_struct __attribute__((__packed__))

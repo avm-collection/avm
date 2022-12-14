@@ -1,6 +1,12 @@
 #ifndef CONFIG_H__HEADER_GUARD__
 #define CONFIG_H__HEADER_GUARD__
 
+#include "platform.h"
+
+#ifdef PLATFORM_LINUX
+#	define USES_READLINE
+#endif
+
 #define APP_NAME    "avm"
 #define TITLE       "AVM"
 #define GITHUB_LINK "https://github.com/avm-collection/avm"
