@@ -1,25 +1,16 @@
 #include "utils.h"
 
-void fatal(const char *p_fmt, ...) {
-	char    msg[1024];
-	va_list args;
+char *strtrim(char *p_str) {
+	/* Trim leading whitespaces */
+	while (isspace(*p_str))
+		++ p_str;
 
-	va_start(args, p_fmt);
-	vsnprintf(msg, sizeof(msg), p_fmt, args);
-	va_end(args);
+	/* Trim trailing whitespaces */
+	char *end = p_str + strlen(p_str) - 1;
+	while (end > p_str && isspace(*end))
+		-- end;
 
-	fprintf(stderr, "Fatal: %s\n", msg);
+	end[1] = '\0';
 
-	exit(EXIT_FAILURE);
-}
-
-void warning(const char *p_fmt, ...) {
-	char    msg[1024];
-	va_list args;
-
-	va_start(args, p_fmt);
-	vsnprintf(msg, sizeof(msg), p_fmt, args);
-	va_end(args);
-
-	fprintf(stderr, "Warning: %s\n", msg);
+	return p_str;
 }

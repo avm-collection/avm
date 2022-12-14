@@ -41,8 +41,9 @@ $ avm <PROGRAM>
 - [X] Basic stack operators
 - [X] Executing from files
 - [X] Conditional instructions, jumps
-- [ ] NaN boxing
+- [ ] RAM
 - [ ] File reading, IO
+- [ ] Loading shared libraries
 
 ## Documentation
 Coming soon.

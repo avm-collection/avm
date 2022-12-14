@@ -2,14 +2,17 @@
 #define VM_H__HEADER_GUARD__
 
 #include <stdint.h>  /* uint64_t, uint8_t */
-#include <string.h>  /* memset, strncmp */
-#include <stdio.h>   /* stderr, fputs, fputc, fprintf, FILE, fflush, fopen, fclose, fread */
+#include <string.h>  /* memset, strncmp, strcmp, strlen */
+#include <stdio.h>   /* stderr, fputs, fputc, putchar, fprintf, FILE, fflush,
+                        fopen, fclose, fread */
 #include <stdbool.h> /* bool, true, false */
 #include <stdlib.h>  /* exit, malloc, free, EXIT_FAILURE */
 #include <errno.h>   /* strerror, errno */
+#include <assert.h>  /* static_assert, assert */
 
 #include "config.h"
 #include "utils.h"
+#include "color.h"
 
 #if defined(__COMPILER_GCC__) || defined(__COMPILER_CLANG__)
 #	define PACK(p_struct) p_struct __attribute__((__packed__))
@@ -112,7 +115,7 @@ enum opcode {
 	OP_PRT = 0xF1,
 	OP_FPR = 0xF2,
 
-	OP_HLT = 0xFF
+	OP_HLT = 0xFF,
 };
 
 enum err {
@@ -123,7 +126,7 @@ enum err {
 	ERR_CALL_STACK_UNDERFLOW,
 	ERR_ILLEGAL_INST,
 	ERR_INVALID_ACCESS,
-	ERR_DIV_BY_ZERO
+	ERR_DIV_BY_ZERO,
 };
 
 const char *err_str(enum err p_err);
@@ -136,12 +139,12 @@ PACK(struct inst {
 struct vm {
 	value_t *stack;
 	word_t  *call_stack;
-	word_t   ip, sp, sb, ex, cs; /* Registers */
+	word_t   ip, sp, cs, ex; /* Registers */
 
 	struct inst *program;
 	word_t       program_size;
 
-	bool halt, warnings;
+	bool halt, warnings, debug;
 };
 
 PACK(struct file_meta {
@@ -151,11 +154,30 @@ PACK(struct file_meta {
 	uint8_t entry_point[sizeof(word_t)];
 });
 
-void vm_init(struct vm *p_vm, bool p_warnings);
+void vm_init(struct vm *p_vm, bool p_warnings, bool p_debug);
 void vm_destroy(struct vm *p_vm);
 
 void vm_dump(struct vm *p_vm, FILE *p_file);
+void vm_dump_regs(struct vm *p_vm, FILE *p_file);
+void vm_dump_stack_top(struct vm *p_vm, FILE *p_file);
+void vm_dump_stack(struct vm *p_vm, FILE *p_file);
 void vm_dump_call_stack(struct vm *p_vm, FILE *p_file);
+void vm_dump_at(struct vm *p_vm, FILE *p_file);
+void vm_dump_inst(struct vm *p_vm, FILE *p_file);
+
+void log_colored(FILE *p_file, enum color p_color, const char *p_fmt, ...);
+
+#define VM_ERROR(P_FILE, ...) \
+	log_colored(P_FILE, COLOR_BRIGHT_RED, __VA_ARGS__)
+#define VM_WARN(P_FILE, ...) \
+	log_colored(P_FILE, COLOR_BRIGHT_YELLOW, __VA_ARGS__)
+#define VM_NOTE(P_FILE, ...) \
+	log_colored(P_FILE, COLOR_BRIGHT_CYAN, __VA_ARGS__)
+
+void vm_panic(struct vm *p_vm, enum err p_err);
+
+void vm_debug(struct vm *p_vm);
+void vm_run(struct vm *p_vm);
 
 void vm_exec_from_mem(struct vm *p_vm, struct inst *p_program, word_t p_program_size, word_t p_ep);
 void vm_exec_from_file(struct vm *p_vm, const char *p_path);

@@ -1,7 +1,6 @@
 #include <stdio.h>  /* printf, puts */
 #include <stdlib.h> /* exit, EXIT_SUCCESS, EXIT_FAILURE, size_t */
 #include <string.h> /* strcmp */
-#include <stdarg.h> /* va_list, va_start, va_end, vsnprintf */
 
 #include "config.h"
 #include "platform.h"
@@ -21,6 +20,8 @@
  * 1.6.3: Add a call stack
  * 1.6.4: Only give a minor version warning if the exe minor version
  *        is greater than the avm minor version
+ * 1.7.4: Improve vm messages, panic output
+ * 1.8.4: Add a debugging mode
  *
  */
 
