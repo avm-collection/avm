@@ -1,6 +1,7 @@
-#include <stdio.h>  /* printf, puts */
-#include <stdlib.h> /* exit, EXIT_SUCCESS, EXIT_FAILURE, size_t */
-#include <string.h> /* strcmp */
+#include <stdio.h>   /* printf, puts */
+#include <stdlib.h>  /* exit, EXIT_SUCCESS, EXIT_FAILURE */
+#include <string.h>  /* strcmp */
+#include <stdbool.h> /* bool, true, false */
 
 #include "config.h"
 #include "platform.h"
@@ -23,6 +24,7 @@
  * 1.7.4: Improve vm messages, panic output
  * 1.8.4: Add a debugging mode
  * 1.8.5: Use readline when possible
+ * 1.9.5: Add memory, memory operation instructions
  *
  */
 

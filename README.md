@@ -1,40 +1,38 @@
 <p align="center">
-	<img width="400px" src="res/logo.png"/>
-	<p align="center">Just a virtual machine in C</p>
+	<img width="350px" src="res/logo.png">
 </p>
+<p align="center">A stack based virtual machine</p>
+	
 <p align="center">
 	<a href="./LICENSE">
-		<img alt="License" src="https://img.shields.io/badge/license-GPL-blue?color=7aca00"/>
+		<img alt="License" src="https://img.shields.io/badge/license-GPL-blue?color=26d374"/>
 	</a>
 	<a href="https://github.com/avm-collection/avm/issues">
-		<img alt="Issues" src="https://img.shields.io/github/issues/avm-collection/avm?color=0088ff"/>
+		<img alt="Issues" src="https://img.shields.io/github/issues/avm-collection/avm?color=4f79e4"/>
 	</a>
 	<a href="https://github.com/avm-collection/avm/pulls">
-		<img alt="GitHub pull requests" src="https://img.shields.io/github/issues-pr/avm-collection/avm?color=0088ff"/>
+		<img alt="GitHub pull requests" src="https://img.shields.io/github/issues-pr/avm-collection/avm?color=4f79e4"/>
 	</a>
-	<br><br><br>
 </p>
 
+A simple unfinished stack based virtual machine written in C.
+
 ## Table of contents
-* [Introduction](#introduction)
+* [Write a program](#write-a-program)
 * [Quickstart](#quickstart)
 * [Milestones](#milestones)
 * [Documentation](#documentation)
 * [Bugs](#bugs)
 * [Make](#make)
 
-## Introduction
-A simple unfinished stack based virtual machine written in C.
-
 ## Write a program
 You probably do not want to write programs in binary, so you can find the assembler with examples [here](https://github.com/avm-collection/anasm).
-If you DO want to write programs in binary, you can at least use my [binary editor](https://github.com/LordOfTrident/binw) :)
 
 ## Quickstart
 ```sh
 $ make
 $ make install
-$ avm <PROGRAM>
+$ avm PROGRAM
 ```
 
 ## Milestones

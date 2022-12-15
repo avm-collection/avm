@@ -2,7 +2,7 @@
 #define VM_H__HEADER_GUARD__
 
 #include <stdint.h>  /* uint64_t, uint8_t */
-#include <string.h>  /* memset, strncmp, strcmp, strlen */
+#include <string.h>  /* memset, memcpy, strncmp, strcmp, strlen */
 #include <stdio.h>   /* stderr, fputs, fputc, putchar, fprintf, FILE, fflush,
                         fopen, fclose, fread */
 #include <stdbool.h> /* bool, true, false */
@@ -36,6 +36,8 @@
 
 #define CALL_STACK_SIZE_BYTES 0x1000
 #define CALL_STACK_CAPACITY   (CALL_STACK_SIZE_BYTES / sizeof(word_t))
+
+#define MEMORY_SIZE_BYTES 0x100000
 
 #define FMT_HEX         "016llX"
 #define AS_FMT_HEX(P_X) (long long unsigned)(P_X)
@@ -118,6 +120,19 @@ enum opcode {
 	OP_DUP = 0x50,
 	OP_SWP = 0x51,
 	OP_EMP = 0x52,
+	OP_SET = 0x53,
+	OP_CPY = 0x54,
+
+	/* Memory */
+	OP_R08 = 0x60,
+	OP_R16 = 0x61,
+	OP_R32 = 0x62,
+	OP_R64 = 0x63,
+
+	OP_W08 = 0x64,
+	OP_W16 = 0x65,
+	OP_W32 = 0x66,
+	OP_W64 = 0x67,
 
 	/* Debug */
 	OP_DMP = 0xF0,
@@ -133,8 +148,9 @@ enum err {
 	ERR_STACK_UNDERFLOW,
 	ERR_CALL_STACK_OVERFLOW,
 	ERR_CALL_STACK_UNDERFLOW,
-	ERR_ILLEGAL_INST,
-	ERR_INVALID_ACCESS,
+	ERR_INVALID_INST,
+	ERR_INVALID_INST_ACCESS,
+	ERR_INVALID_MEM_ACCESS,
 	ERR_DIV_BY_ZERO,
 };
 
@@ -148,6 +164,7 @@ PACK(struct inst {
 struct vm {
 	value_t *stack;
 	word_t  *call_stack;
+	uint8_t *memory;
 	word_t   ip, sp, cs, ex; /* Registers */
 
 	struct inst *program;
@@ -174,6 +191,8 @@ void vm_dump_call_stack(struct vm *p_vm, FILE *p_file);
 void vm_dump_at(struct vm *p_vm, FILE *p_file);
 void vm_dump_inst(struct vm *p_vm, FILE *p_file);
 
+void vm_panic(struct vm *p_vm, enum err p_err);
+
 void log_colored(FILE *p_file, enum color p_color, const char *p_fmt, ...);
 
 #define VM_ERROR(P_FILE, ...) \
@@ -183,7 +202,15 @@ void log_colored(FILE *p_file, enum color p_color, const char *p_fmt, ...);
 #define VM_NOTE(P_FILE, ...) \
 	log_colored(P_FILE, COLOR_BRIGHT_CYAN, __VA_ARGS__)
 
-void vm_panic(struct vm *p_vm, enum err p_err);
+enum err vm_read8 (struct vm *p_vm, uint8_t  *p_data, word_t p_addr);
+enum err vm_read16(struct vm *p_vm, uint16_t *p_data, word_t p_addr);
+enum err vm_read32(struct vm *p_vm, uint32_t *p_data, word_t p_addr);
+enum err vm_read64(struct vm *p_vm, uint64_t *p_data, word_t p_addr);
+
+enum err vm_write8 (struct vm *p_vm, uint8_t  p_data, word_t p_addr);
+enum err vm_write16(struct vm *p_vm, uint16_t p_data, word_t p_addr);
+enum err vm_write32(struct vm *p_vm, uint32_t p_data, word_t p_addr);
+enum err vm_write64(struct vm *p_vm, uint64_t p_data, word_t p_addr);
 
 void vm_debug(struct vm *p_vm);
 void vm_run(struct vm *p_vm);
