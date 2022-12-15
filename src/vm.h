@@ -85,6 +85,9 @@ enum opcode {
 	OP_FIN = 0x2b,
 	OP_FDE = 0x2c,
 
+	OP_NEG = 0x2d,
+	OP_NOT = 0x2e,
+
 	/* Logic */
 	OP_JMP = 0x30,
 	OP_JNZ = 0x31,

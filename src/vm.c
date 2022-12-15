@@ -25,6 +25,9 @@ const char *op_to_str[] = {
 	[OP_FIN] = "FIN",
 	[OP_FDE] = "FDE",
 
+	[OP_NEG] = "NEG",
+	[OP_NOT] = "NOT",
+
 	[OP_JMP] = "JMP",
 	[OP_JNZ] = "JNZ",
 
@@ -464,6 +467,22 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 			return ERR_STACK_UNDERFLOW;
 
 		-- p_vm->stack[p_vm->sp - 1].f64;
+
+		break;
+
+	case OP_NEG:
+		if (p_vm->sp <= 0)
+			return ERR_STACK_UNDERFLOW;
+
+		p_vm->stack[p_vm->sp - 1].i64 = -p_vm->stack[p_vm->sp - 1].i64;
+
+		break;
+
+	case OP_NOT:
+		if (p_vm->sp <= 0)
+			return ERR_STACK_UNDERFLOW;
+
+		p_vm->stack[p_vm->sp - 1].u64 = !p_vm->stack[p_vm->sp - 1].u64;
 
 		break;
 
