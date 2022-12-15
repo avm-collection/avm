@@ -2,7 +2,7 @@
 	<img width="350px" src="res/logo.png">
 </p>
 <p align="center">A stack based virtual machine</p>
-	
+
 <p align="center">
 	<a href="./LICENSE">
 		<img alt="License" src="https://img.shields.io/badge/license-GPL-blue?color=26d374"/>
@@ -39,7 +39,7 @@ $ avm PROGRAM
 - [X] Basic stack operators
 - [X] Executing from files
 - [X] Conditional instructions, jumps
-- [ ] RAM
+- [X] RAM
 - [ ] File reading, IO
 - [ ] Loading shared libraries
 
