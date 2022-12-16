@@ -792,6 +792,8 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 			enum err ret = vm_read8(p_vm, &data, addr);
 			if (ret != ERR_OK)
 				return ret;
+
+			p_vm->stack[p_vm->sp - 1].u64 = data;
 		}
 
 		break;
@@ -1105,16 +1107,33 @@ void vm_exec_from_file(struct vm *p_vm, const char *p_path) {
 	// 	warning("'%s' patch version is %i, your VM patch version is %i",
 	// 	        p_path, meta.ver[2], VERSION_PATCH);
 
-	word_t size = bytes_to_word(meta.program_size);
-	word_t ep   = bytes_to_word(meta.entry_point);
+	word_t program_size = bytes_to_word(meta.program_size);
+	word_t memory_size  = bytes_to_word(meta.memory_size);
+	word_t entry_point  = bytes_to_word(meta.entry_point);
 
-	struct inst *program = (struct inst*)malloc(sizeof(struct inst) * size);
+	for (size_t i = 0; i < memory_size; ++ i) {
+		if (i >= MEMORY_SIZE_BYTES) {
+			VM_ERROR(stderr, "'%s' memory segment is bigger than VM memory (%zu bytes)",
+			         p_path, i + 1);
+			exit(EXIT_FAILURE);
+		}
+
+		int byte = fgetc(file);
+		if (byte == EOF) {
+			VM_ERROR(stderr, "'%s' unexpected EOF during memory segment", p_path);
+			exit(EXIT_FAILURE);
+		}
+
+		p_vm->memory[i] = byte;
+	}
+
+	struct inst *program = (struct inst*)malloc(sizeof(struct inst) * program_size);
 	if (program == NULL) {
 		VM_ERROR(stderr, "malloc() fail");
 		exit(EXIT_FAILURE);
 	}
 
-	for (size_t i = 0; i < size; ++ i) {
+	for (size_t i = 0; i < program_size; ++ i) {
 		uint8_t inst[sizeof(struct inst)];
 
 		ret = fread(&inst, sizeof(inst), 1, file);
@@ -1130,7 +1149,7 @@ void vm_exec_from_file(struct vm *p_vm, const char *p_path) {
 
 	fclose(file);
 
-	vm_exec_from_mem(p_vm, program, size, ep);
+	vm_exec_from_mem(p_vm, program, program_size, entry_point);
 
 	free(program);
 }

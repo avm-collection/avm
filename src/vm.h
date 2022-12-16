@@ -4,7 +4,7 @@
 #include <stdint.h>  /* uint64_t, uint8_t */
 #include <string.h>  /* memset, memcpy, strncmp, strcmp, strlen */
 #include <stdio.h>   /* stderr, fputs, fputc, putchar, fprintf, FILE, fflush,
-                        fopen, fclose, fread */
+                        fopen, fclose, fread, fgetc */
 #include <stdbool.h> /* bool, true, false */
 #include <stdlib.h>  /* exit, malloc, free, EXIT_FAILURE */
 #include <errno.h>   /* strerror, errno */
@@ -180,6 +180,7 @@ PACK(struct file_meta {
 	char    magic[3]; /* AVM */
 	uint8_t ver[3];   /* [0] = MAJOR, [1] = MINOR, [2] = PATCH */
 	uint8_t program_size[sizeof(word_t)];
+	uint8_t memory_size[sizeof(word_t)];
 	uint8_t entry_point[sizeof(word_t)];
 });
 

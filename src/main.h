@@ -26,6 +26,8 @@
  * 1.8.5:  Use readline when possible
  * 1.9.5:  Add memory, memory operation instructions
  * 1.10.5: Add neg, not instructions
+ * 1.11.5: Memory initialization from executable bytecode
+ * 1.11.6: Fix r08 instruction
  *
  */
 

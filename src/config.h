@@ -12,8 +12,8 @@
 #define GITHUB_LINK "https://github.com/avm-collection/avm"
 
 #define VERSION_MAJOR 1
-#define VERSION_MINOR 10
-#define VERSION_PATCH 4
+#define VERSION_MINOR 11
+#define VERSION_PATCH 6
 
 #define ASCII_LOGO \
 	" __________________ \n" \
