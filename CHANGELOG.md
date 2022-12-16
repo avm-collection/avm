@@ -1,6 +1,6 @@
 # avm changelog
 * [avm 0](#avm-0)
-* [avm 1](#avm-0)
+* [avm 1](#avm-1)
 
 ## avm 0
 - `0.1.0`: Basic stack operations
