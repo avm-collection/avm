@@ -15,7 +15,8 @@
  * 0.4.1: Add float and signed instructions, debug print instructions
  * 0.4.2: Fix platform and compiler detection
  * 1.0.0: Remove registers from instructions, from the VM and
- *        remove register manipulation instructions
+ *        remove register manipulation instructions - the main
+ *        structure of the VM is thought out
  * 1.1.0: Improve swap and dup instructions
  * 1.1.1: Allocate the stack on the heap
  * 1.2.1: Add a call stack
