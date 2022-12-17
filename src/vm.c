@@ -1124,7 +1124,7 @@ void vm_exec_from_file(struct vm *p_vm, const char *p_path) {
 			exit(EXIT_FAILURE);
 		}
 
-		p_vm->memory[i] = byte;
+		p_vm->memory[i + 1] = byte;
 	}
 
 	struct inst *program = (struct inst*)malloc(sizeof(struct inst) * program_size);

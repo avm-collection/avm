@@ -26,3 +26,4 @@
 - `1.6.3`: Add neg, not instructions
 - `1.7.3`: Memory initialization from executable bytecode
 - `1.7.4`: Fix r08 instruction
+- `1.8.4`: Offset the memory segment address by 1 (to not include the unused first byte of memory)
