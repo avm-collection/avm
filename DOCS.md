@@ -1,2 +1,2 @@
 # avm documentation
-The documentation is hosted [here](https://avm-collection.github.io)
+The documentation is hosted [here](https://avm-collection.github.io/avm)
