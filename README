@@ -1,2 +1,2 @@
-avm - Just a virtual machine in C
+AVM - A stack based virtual machine in C
 Please, see: https://github.com/avm-collection/avm

@@ -26,7 +26,7 @@ A simple unfinished stack based virtual machine written in C.
 * [Make](#make)
 
 ## Write a program
-For writing a program for avm, use the avm assembler called [anasm](https://github.com/avm-collection/anasm)
+For writing a program for AVM, use the AVM assembler called [ANASM](https://github.com/avm-collection/anasm)
 
 ## Quickstart
 ```sh
