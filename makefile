@@ -9,7 +9,10 @@ INSTALL = /usr/bin/avm
 CC     = gcc
 CSTD   = c11
 CFLAGS = -Og -std=$(CSTD) -Wall -Wextra -Werror -pedantic -Wno-deprecated-declarations
-LIBS   = -lreadline
+
+ifneq ($(OS),Windows_NT)
+	LIBS = -lreadline
+endif
 
 shared: $(BIN) $(OBJ) $(SRC)
 	$(CC) $(CFLAGS) -o $(OUT) $(OBJ) $(LIBS)
