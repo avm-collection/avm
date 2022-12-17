@@ -44,7 +44,7 @@ $ avm PROGRAM
 - [ ] Loading shared libraries
 
 ## Documentation
-Coming soon.
+Hosted [here](https://avm-collection.github.io/avm)
 
 ## Bugs
 If you find any bugs, please create an issue and report them.
