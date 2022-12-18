@@ -28,3 +28,4 @@
 - `1.7.4`: Fix r08 instruction
 - `1.8.4`: Offset the memory segment address by 1 (to not include the unused first byte of memory)
 - `1.8.5`: Make the call stack not output on crash if its empty
+- `1.9.5`: Add file IO instructions

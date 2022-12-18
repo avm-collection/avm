@@ -71,6 +71,11 @@ const char *op_to_str[] = {
 	[OP_W32] = "W32",
 	[OP_W64] = "W64",
 
+	[OP_OPE] = "OPE",
+	[OP_CLO] = "CLO",
+	[OP_WRF] = "WRF",
+	[OP_RDF] = "RDF",
+
 	[OP_DMP] = "DMP",
 	[OP_PRT] = "PRT",
 	[OP_FPR] = "FPR",
@@ -78,20 +83,60 @@ const char *op_to_str[] = {
 	[OP_HLT] = "HLT",
 };
 
-const char *err_str(enum err p_err) {
-	switch (p_err) {
-	case ERR_OK:                   return "OK";
-	case ERR_STACK_OVERFLOW:       return "Stack overflow";
-	case ERR_STACK_UNDERFLOW:      return "Stack underflow";
-	case ERR_CALL_STACK_OVERFLOW:  return "Call stack overflow";
-	case ERR_CALL_STACK_UNDERFLOW: return "Call stack underflow";
-	case ERR_INVALID_INST:         return "Invalid instruction";
-	case ERR_INVALID_INST_ACCESS:  return "Invalid instruction access";
-	case ERR_INVALID_MEM_ACCESS:   return "Invalid memory access";
-	case ERR_DIV_BY_ZERO:          return "Division by zero";
+const char *err_to_str[] = {
+	[ERR_OK]                   = "OK",
+	[ERR_STACK_OVERFLOW]       = "Stack overflow",
+	[ERR_STACK_UNDERFLOW]      = "Stack underflow",
+	[ERR_CALL_STACK_OVERFLOW]  = "Call stack overflow",
+	[ERR_CALL_STACK_UNDERFLOW] = "Call stack underflow",
+	[ERR_INVALID_INST]         = "Invalid instruction",
+	[ERR_INVALID_INST_ACCESS]  = "Invalid instruction access",
+	[ERR_INVALID_MEM_ACCESS]   = "Invalid memory access",
+	[ERR_DIV_BY_ZERO]          = "Division by zero",
+	[ERR_MAX_FILES_OPEN]       = "Reached max limit of files open",
+	[ERR_INVALID_FMODE]        = "Invalid file mode",
+	[ERR_INVALID_FD]         = "Invalid file descriptor",
+};
+
+#define FMODE_STR_SIZE 4
+
+char *fmode_to_str(enum fmode p_fmode) {
+	char *str = (char*)malloc(FMODE_STR_SIZE);
+	if (str == NULL) {
+		VM_ERROR(stderr, "malloc() fail near "__FILE__":%i", __LINE__);
+		exit(EXIT_FAILURE);
 	}
 
-	UNREACHABLE();
+	memset(str, 0, FMODE_STR_SIZE);
+
+	if ((p_fmode & FMODE_READ) && (p_fmode & FMODE_WRITE)) {
+		str[0] = p_fmode & FMODE_APPEND? 'r' : 'w';
+
+		int next = 1;
+		if (p_fmode & FMODE_BINARY) {
+			str[next] = 'b';
+			++ next;
+		}
+
+		str[next] = '+';
+	} else {
+		if (p_fmode & FMODE_READ)
+			str[0] = 'r';
+		else if (p_fmode & FMODE_WRITE)
+			str[0] = 'w';
+		else if (p_fmode & FMODE_APPEND)
+			str[0] = 'a';
+		else {
+			free(str);
+
+			return NULL;
+		}
+
+		if (p_fmode & FMODE_BINARY)
+			str[1] = 'b';
+	}
+
+	return str;
 }
 
 void vm_init(struct vm *p_vm, bool p_warnings, bool p_debug) {
@@ -101,30 +146,35 @@ void vm_init(struct vm *p_vm, bool p_warnings, bool p_debug) {
 
 	p_vm->stack = (value_t*)malloc(STACK_SIZE_BYTES);
 	if (p_vm->stack == NULL) {
-		fprintf(stderr, "malloc() fail "__FILE__":%i\n", __LINE__);
-
+		VM_ERROR(stderr, "malloc() fail near "__FILE__":%i", __LINE__);
 		exit(EXIT_FAILURE);
 	}
 
 	p_vm->call_stack = (word_t*)malloc(CALL_STACK_SIZE_BYTES);
 	if (p_vm->call_stack == NULL) {
-		fprintf(stderr, "malloc() fail at "__FILE__":%i\n", __LINE__);
-
+		VM_ERROR(stderr, "malloc() fail near "__FILE__":%i", __LINE__);
 		exit(EXIT_FAILURE);
 	}
 
 	p_vm->memory = (uint8_t*)malloc(MEMORY_SIZE_BYTES);
 	if (p_vm->memory == NULL) {
-		fprintf(stderr, "malloc() fail at "__FILE__":%i\n", __LINE__);
-
+		VM_ERROR(stderr, "malloc() fail near "__FILE__":%i", __LINE__);
 		exit(EXIT_FAILURE);
 	}
+
+	p_vm->files = (struct file*)malloc(MAX_OPEN_FILES * sizeof(struct file));
+	if (p_vm->files == NULL) {
+		VM_ERROR(stderr, "malloc() fail near "__FILE__":%i", __LINE__);
+		exit(EXIT_FAILURE);
+	}
+	memset(p_vm->files, 0, MAX_OPEN_FILES * sizeof(struct file));
 }
 
 void vm_destroy(struct vm *p_vm) {
 	free(p_vm->stack);
 	free(p_vm->call_stack);
 	free(p_vm->memory);
+	free(p_vm->files);
 }
 
 void vm_dump(struct vm *p_vm, FILE *p_file) {
@@ -228,7 +278,7 @@ void vm_dump_at(struct vm *p_vm, FILE *p_file) {
 
 void vm_panic(struct vm *p_vm, enum err p_err) {
 	fputc('\n', stderr);
-	VM_ERROR(stderr, err_str(p_err));
+	VM_ERROR(stderr, err_to_str[p_err]);
 	vm_dump_at(p_vm, stderr);
 
 	if (p_vm->cs > 0)
@@ -339,6 +389,30 @@ enum err vm_write64(struct vm *p_vm, uint64_t p_data, word_t p_addr) {
 	return ERR_OK;
 }
 
+char *vm_mem_str_to_cstr(struct vm *p_vm, word_t p_addr) {
+	word_t   size;
+	enum err ret = vm_read64(p_vm, &size, p_addr);
+	if (ret != ERR_OK)
+		return NULL;
+
+	if (p_addr >= MEMORY_SIZE_BYTES - size - 7)
+		return NULL;
+
+	char *str = malloc(size + 1);
+	if (str == NULL) {
+		VM_ERROR(stderr, "malloc() fail near "__FILE__":%i", __LINE__);
+		exit(EXIT_FAILURE);
+	}
+
+	for (word_t i = 0; i < size; ++ i) {
+		str[i] = p_vm->memory[p_addr + 8 + i];
+	}
+
+	str[size] = 0;
+
+	return str;
+}
+
 static int vm_exec_next_inst(struct vm *p_vm) {
 	struct inst *inst = &p_vm->program[p_vm->ip];
 
@@ -354,7 +428,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_POP:
-		if (p_vm->sp <= 0)
+		if (p_vm->sp < 1)
 			return ERR_STACK_UNDERFLOW;
 
 		-- p_vm->sp;
@@ -362,7 +436,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_ADD:
-		if (p_vm->sp <= 1)
+		if (p_vm->sp < 2)
 			return ERR_STACK_UNDERFLOW;
 
 		p_vm->stack[p_vm->sp - 2].u64 += p_vm->stack[p_vm->sp - 1].u64;
@@ -371,7 +445,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_SUB:
-		if (p_vm->sp <= 1)
+		if (p_vm->sp < 2)
 			return ERR_STACK_UNDERFLOW;
 
 		p_vm->stack[p_vm->sp - 2].u64 -= p_vm->stack[p_vm->sp - 1].u64;
@@ -380,7 +454,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_MUL:
-		if (p_vm->sp <= 1)
+		if (p_vm->sp < 2)
 			return ERR_STACK_UNDERFLOW;
 
 		p_vm->stack[p_vm->sp - 2].u64 *= p_vm->stack[p_vm->sp - 1].u64;
@@ -389,7 +463,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_DIV:
-		if (p_vm->sp <= 1)
+		if (p_vm->sp < 2)
 			return ERR_STACK_UNDERFLOW;
 
 		{
@@ -404,7 +478,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_MOD:
-		if (p_vm->sp <= 1)
+		if (p_vm->sp < 2)
 			return ERR_STACK_UNDERFLOW;
 
 		p_vm->stack[p_vm->sp - 2].u64 %= p_vm->stack[p_vm->sp - 1].u64;
@@ -413,7 +487,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_INC:
-		if (p_vm->sp <= 0)
+		if (p_vm->sp < 1)
 			return ERR_STACK_UNDERFLOW;
 
 		++ p_vm->stack[p_vm->sp - 1].u64;
@@ -421,7 +495,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_DEC:
-		if (p_vm->sp <= 0)
+		if (p_vm->sp < 1)
 			return ERR_STACK_UNDERFLOW;
 
 		-- p_vm->stack[p_vm->sp - 1].u64;
@@ -429,7 +503,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_FAD:
-		if (p_vm->sp <= 1)
+		if (p_vm->sp < 2)
 			return ERR_STACK_UNDERFLOW;
 
 		p_vm->stack[p_vm->sp - 2].f64 += p_vm->stack[p_vm->sp - 1].f64;
@@ -438,7 +512,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_FSB:
-		if (p_vm->sp <= 1)
+		if (p_vm->sp < 2)
 			return ERR_STACK_UNDERFLOW;
 
 		p_vm->stack[p_vm->sp - 2].f64 -= p_vm->stack[p_vm->sp - 1].f64;
@@ -447,7 +521,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_FMU:
-		if (p_vm->sp <= 1)
+		if (p_vm->sp < 2)
 			return ERR_STACK_UNDERFLOW;
 
 		p_vm->stack[p_vm->sp - 2].f64 *= p_vm->stack[p_vm->sp - 1].f64;
@@ -456,7 +530,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_FDI:
-		if (p_vm->sp <= 1)
+		if (p_vm->sp < 2)
 			return ERR_STACK_UNDERFLOW;
 
 		p_vm->stack[p_vm->sp - 2].f64 /= p_vm->stack[p_vm->sp - 1].f64;
@@ -465,7 +539,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_FIN:
-		if (p_vm->sp <= 0)
+		if (p_vm->sp < 1)
 			return ERR_STACK_UNDERFLOW;
 
 		++ p_vm->stack[p_vm->sp - 1].f64;
@@ -473,7 +547,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_FDE:
-		if (p_vm->sp <= 0)
+		if (p_vm->sp < 1)
 			return ERR_STACK_UNDERFLOW;
 
 		-- p_vm->stack[p_vm->sp - 1].f64;
@@ -481,7 +555,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_NEG:
-		if (p_vm->sp <= 0)
+		if (p_vm->sp < 1)
 			return ERR_STACK_UNDERFLOW;
 
 		p_vm->stack[p_vm->sp - 1].i64 = -p_vm->stack[p_vm->sp - 1].i64;
@@ -489,7 +563,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_NOT:
-		if (p_vm->sp <= 0)
+		if (p_vm->sp < 1)
 			return ERR_STACK_UNDERFLOW;
 
 		p_vm->stack[p_vm->sp - 1].u64 = !p_vm->stack[p_vm->sp - 1].u64;
@@ -505,7 +579,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_JNZ:
-		if (p_vm->sp <= 0)
+		if (p_vm->sp < 1)
 			return ERR_STACK_UNDERFLOW;
 
 		if (p_vm->stack[p_vm->sp - 1].u64) {
@@ -520,7 +594,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_EQU:
-		if (p_vm->sp <= 1)
+		if (p_vm->sp < 2)
 			return ERR_STACK_UNDERFLOW;
 
 		p_vm->stack[p_vm->sp - 2].u64 = p_vm->stack[p_vm->sp - 2].i64 ==
@@ -530,7 +604,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_NEQ:
-		if (p_vm->sp <= 1)
+		if (p_vm->sp < 2)
 			return ERR_STACK_UNDERFLOW;
 
 		p_vm->stack[p_vm->sp - 2].u64 = p_vm->stack[p_vm->sp - 2].i64 !=
@@ -540,7 +614,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_GRT:
-		if (p_vm->sp <= 1)
+		if (p_vm->sp < 2)
 			return ERR_STACK_UNDERFLOW;
 
 		p_vm->stack[p_vm->sp - 2].u64 = p_vm->stack[p_vm->sp - 2].i64 >
@@ -550,7 +624,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_GEQ:
-		if (p_vm->sp <= 1)
+		if (p_vm->sp < 2)
 			return ERR_STACK_UNDERFLOW;
 
 		p_vm->stack[p_vm->sp - 2].u64 = p_vm->stack[p_vm->sp - 2].i64 >=
@@ -560,7 +634,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_LES:
-		if (p_vm->sp <= 1)
+		if (p_vm->sp < 2)
 			return ERR_STACK_UNDERFLOW;
 
 		p_vm->stack[p_vm->sp - 2].u64 = p_vm->stack[p_vm->sp - 2].i64 <
@@ -570,7 +644,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_LEQ:
-		if (p_vm->sp <= 1)
+		if (p_vm->sp < 2)
 			return ERR_STACK_UNDERFLOW;
 
 		p_vm->stack[p_vm->sp - 2].u64 = p_vm->stack[p_vm->sp - 2].i64 <=
@@ -580,7 +654,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_UEQ:
-		if (p_vm->sp <= 1)
+		if (p_vm->sp < 2)
 			return ERR_STACK_UNDERFLOW;
 
 		p_vm->stack[p_vm->sp - 2].u64 = p_vm->stack[p_vm->sp - 2].u64 ==
@@ -590,7 +664,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_UNE:
-		if (p_vm->sp <= 1)
+		if (p_vm->sp < 2)
 			return ERR_STACK_UNDERFLOW;
 
 		p_vm->stack[p_vm->sp - 2].u64 = p_vm->stack[p_vm->sp - 2].u64 !=
@@ -600,7 +674,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_UGR:
-		if (p_vm->sp <= 1)
+		if (p_vm->sp < 2)
 			return ERR_STACK_UNDERFLOW;
 
 		p_vm->stack[p_vm->sp - 2].u64 = p_vm->stack[p_vm->sp - 2].u64 >
@@ -610,7 +684,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_UGQ:
-		if (p_vm->sp <= 1)
+		if (p_vm->sp < 2)
 			return ERR_STACK_UNDERFLOW;
 
 		p_vm->stack[p_vm->sp - 2].u64 = p_vm->stack[p_vm->sp - 2].u64 >=
@@ -620,7 +694,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_ULE:
-		if (p_vm->sp <= 1)
+		if (p_vm->sp < 2)
 			return ERR_STACK_UNDERFLOW;
 
 		p_vm->stack[p_vm->sp - 2].u64 = p_vm->stack[p_vm->sp - 2].u64 <
@@ -630,7 +704,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_ULQ:
-		if (p_vm->sp <= 1)
+		if (p_vm->sp < 2)
 			return ERR_STACK_UNDERFLOW;
 
 		p_vm->stack[p_vm->sp - 2].u64 = p_vm->stack[p_vm->sp - 2].u64 <=
@@ -640,7 +714,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_FEQ:
-		if (p_vm->sp <= 1)
+		if (p_vm->sp < 2)
 			return ERR_STACK_UNDERFLOW;
 
 		p_vm->stack[p_vm->sp - 2].u64 = p_vm->stack[p_vm->sp - 2].f64 ==
@@ -650,7 +724,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_FNE:
-		if (p_vm->sp <= 1)
+		if (p_vm->sp < 2)
 			return ERR_STACK_UNDERFLOW;
 
 		p_vm->stack[p_vm->sp - 2].u64 = p_vm->stack[p_vm->sp - 2].f64 !=
@@ -660,7 +734,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_FGR:
-		if (p_vm->sp <= 1)
+		if (p_vm->sp < 2)
 			return ERR_STACK_UNDERFLOW;
 
 		p_vm->stack[p_vm->sp - 2].u64 = p_vm->stack[p_vm->sp - 2].f64 >
@@ -670,7 +744,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_FGQ:
-		if (p_vm->sp <= 1)
+		if (p_vm->sp < 2)
 			return ERR_STACK_UNDERFLOW;
 
 		p_vm->stack[p_vm->sp - 2].u64 = p_vm->stack[p_vm->sp - 2].f64 >=
@@ -680,7 +754,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_FLE:
-		if (p_vm->sp <= 1)
+		if (p_vm->sp < 2)
 			return ERR_STACK_UNDERFLOW;
 
 		p_vm->stack[p_vm->sp - 2].u64 = p_vm->stack[p_vm->sp - 2].f64 <
@@ -690,7 +764,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_FLQ:
-		if (p_vm->sp <= 1)
+		if (p_vm->sp < 2)
 			return ERR_STACK_UNDERFLOW;
 
 		p_vm->stack[p_vm->sp - 2].u64 = p_vm->stack[p_vm->sp - 2].f64 <=
@@ -732,7 +806,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_SWP:
-		if (p_vm->sp <= 1)
+		if (p_vm->sp < 2)
 			return ERR_STACK_UNDERFLOW;
 		else if (p_vm->sp < inst->data.u64 + 2)
 			return ERR_STACK_UNDERFLOW;
@@ -755,7 +829,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_SET:
-		if (p_vm->sp <= 2)
+		if (p_vm->sp < 3)
 			return ERR_STACK_UNDERFLOW;
 
 		{
@@ -774,7 +848,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_CPY:
-		if (p_vm->sp <= 2)
+		if (p_vm->sp < 3)
 			return ERR_STACK_UNDERFLOW;
 
 		{
@@ -793,7 +867,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_R08:
-		if (p_vm->sp <= 0)
+		if (p_vm->sp < 1)
 			return ERR_STACK_UNDERFLOW;
 
 		{
@@ -809,7 +883,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_R16:
-		if (p_vm->sp <= 0)
+		if (p_vm->sp < 1)
 			return ERR_STACK_UNDERFLOW;
 
 		{
@@ -825,7 +899,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_R32:
-		if (p_vm->sp <= 0)
+		if (p_vm->sp < 1)
 			return ERR_STACK_UNDERFLOW;
 
 		{
@@ -841,7 +915,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_R64:
-		if (p_vm->sp <= 0)
+		if (p_vm->sp < 1)
 			return ERR_STACK_UNDERFLOW;
 
 		{
@@ -857,7 +931,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_W08:
-		if (p_vm->sp <= 1)
+		if (p_vm->sp < 2)
 			return ERR_STACK_UNDERFLOW;
 
 		{
@@ -873,7 +947,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_W16:
-		if (p_vm->sp <= 1)
+		if (p_vm->sp < 2)
 			return ERR_STACK_UNDERFLOW;
 
 		{
@@ -889,7 +963,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_W32:
-		if (p_vm->sp <= 1)
+		if (p_vm->sp < 2)
 			return ERR_STACK_UNDERFLOW;
 
 		{
@@ -905,7 +979,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_W64:
-		if (p_vm->sp <= 1)
+		if (p_vm->sp < 2)
 			return ERR_STACK_UNDERFLOW;
 
 		{
@@ -920,6 +994,97 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 
 		break;
 
+	case OP_OPE:
+		if (p_vm->sp < 2)
+			return ERR_STACK_UNDERFLOW;
+
+		{
+			word_t      addr = p_vm->stack[p_vm->sp - 2].u64;
+			enum fmode fmode = (enum fmode)p_vm->stack[p_vm->sp - 1].u64;
+
+			char *name = vm_mem_str_to_cstr(p_vm, addr);
+			if (name == NULL)
+				return ERR_INVALID_MEM_ACCESS;
+
+			-- p_vm->sp;
+
+			for (word_t i = 0; i < MAX_OPEN_FILES; ++ i) {
+				if (p_vm->files[i].file == NULL) {
+					char *fmode_str = fmode_to_str(fmode);
+					if (fmode_str == NULL)
+						return ERR_INVALID_FMODE;
+
+					p_vm->files[i].fmode = fmode;
+					p_vm->files[i].file  = fopen(name, fmode_str);
+					if (p_vm->files[i].file == NULL)
+						p_vm->stack[p_vm->sp - 1].i64 = -1;
+					else
+						p_vm->stack[p_vm->sp - 1].u64 = i;
+
+					free(fmode_str);
+					free(name);
+
+					goto found;
+				}
+			}
+
+			free(name);
+
+			vm_panic(p_vm, ERR_MAX_FILES_OPEN);
+		}
+
+	found:
+		break;
+
+	case OP_CLO:
+		if (p_vm->sp < 1)
+			return ERR_STACK_UNDERFLOW;
+
+		{
+			word_t fd = p_vm->stack[-- p_vm->sp].u64;
+			if (fd >= MAX_OPEN_FILES || p_vm->files[fd].file == NULL)
+				return ERR_INVALID_FD;
+
+			fclose(p_vm->files[fd].file);
+			p_vm->files[fd].file = NULL;
+		}
+
+		break;
+
+	case OP_WRF:
+		if (p_vm->sp < 2)
+			return ERR_STACK_UNDERFLOW;
+
+		{
+			word_t  fd   = p_vm->stack[p_vm->sp - 2].u64;
+			uint8_t byte = (uint8_t)p_vm->stack[p_vm->sp - 1].u64;
+
+			if (fd >= MAX_OPEN_FILES || p_vm->files[fd].file == NULL)
+				return ERR_INVALID_FD;
+
+			fputc((int)byte, p_vm->files[fd].file);
+
+			p_vm->sp -= 2;
+		}
+
+		break;
+
+	case OP_RDF:
+		if (p_vm->sp < 1)
+			return ERR_STACK_UNDERFLOW;
+
+		{
+			word_t fd = p_vm->stack[p_vm->sp - 1].u64;
+
+			if (fd >= MAX_OPEN_FILES || p_vm->files[fd].file == NULL)
+				return ERR_INVALID_FD;
+
+			int byte = fgetc(p_vm->files[fd].file);
+			p_vm->stack[p_vm->sp - 1].i64 = byte == EOF? -1 : byte;
+		}
+
+		break;
+
 	case OP_DMP:
 		putchar('\n');
 		vm_dump(p_vm, stdout);
@@ -928,7 +1093,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_PRT:
-		if (p_vm->sp <= 0)
+		if (p_vm->sp < 1)
 			return ERR_STACK_UNDERFLOW;
 
 		printf("%i\n", (int)p_vm->stack[-- p_vm->sp].i64);
@@ -936,7 +1101,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_FPR:
-		if (p_vm->sp <= 0)
+		if (p_vm->sp < 1)
 			return ERR_STACK_UNDERFLOW;
 
 		printf("%f\n", (float)p_vm->stack[-- p_vm->sp].f64);
@@ -944,7 +1109,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_HLT:
-		if (p_vm->sp <= 0)
+		if (p_vm->sp < 1)
 			return ERR_STACK_UNDERFLOW;
 
 		p_vm->ex   = p_vm->stack[-- p_vm->sp].u64;
@@ -1121,7 +1286,7 @@ void vm_exec_from_file(struct vm *p_vm, const char *p_path) {
 	word_t memory_size  = bytes_to_word(meta.memory_size);
 	word_t entry_point  = bytes_to_word(meta.entry_point);
 
-	for (size_t i = 0; i < memory_size; ++ i) {
+	for (word_t i = 0; i < memory_size; ++ i) {
 		if (i >= MEMORY_SIZE_BYTES) {
 			VM_ERROR(stderr, "'%s' memory segment is bigger than VM memory (%zu bytes)",
 			         p_path, i + 1);
@@ -1143,7 +1308,7 @@ void vm_exec_from_file(struct vm *p_vm, const char *p_path) {
 		exit(EXIT_FAILURE);
 	}
 
-	for (size_t i = 0; i < program_size; ++ i) {
+	for (word_t i = 0; i < program_size; ++ i) {
 		uint8_t inst[sizeof(struct inst)];
 
 		ret = fread(&inst, sizeof(inst), 1, file);

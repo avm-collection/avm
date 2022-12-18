@@ -39,6 +39,8 @@
 
 #define MEMORY_SIZE_BYTES 0x100000
 
+#define MAX_OPEN_FILES 0x100
+
 #define FMT_HEX         "016llX"
 #define AS_FMT_HEX(P_X) (long long unsigned)(P_X)
 
@@ -137,6 +139,12 @@ enum opcode {
 	OP_W32 = 0x66,
 	OP_W64 = 0x67,
 
+	/* File IO */
+	OP_OPE = 0x70,
+	OP_CLO = 0x71,
+	OP_WRF = 0x72,
+	OP_RDF = 0x73,
+
 	/* Debug */
 	OP_DMP = 0xF0,
 	OP_PRT = 0xF1,
@@ -155,9 +163,26 @@ enum err {
 	ERR_INVALID_INST_ACCESS  = 0x06,
 	ERR_INVALID_MEM_ACCESS   = 0x07,
 	ERR_DIV_BY_ZERO          = 0x08,
+	ERR_MAX_FILES_OPEN       = 0x09,
+	ERR_INVALID_FMODE        = 0x0a,
+	ERR_INVALID_FD           = 0x0b,
 };
 
 const char *err_str(enum err p_err);
+
+enum fmode {
+	FMODE_READ   = 1 << 0,
+	FMODE_WRITE  = 1 << 1,
+	FMODE_APPEND = 1 << 2,
+	FMODE_BINARY = 1 << 3,
+};
+
+char *fmode_to_str(enum fmode p_fmode);
+
+struct file {
+	FILE      *file;
+	enum fmode fmode;
+};
 
 PACK(struct inst {
 	enum opcode op: 8;
@@ -169,6 +194,8 @@ struct vm {
 	word_t  *call_stack;
 	uint8_t *memory;
 	word_t   ip, sp, cs, ex; /* Registers */
+
+	struct file *files;
 
 	struct inst *program;
 	word_t       program_size;
@@ -215,6 +242,8 @@ enum err vm_write8 (struct vm *p_vm, uint8_t  p_data, word_t p_addr);
 enum err vm_write16(struct vm *p_vm, uint16_t p_data, word_t p_addr);
 enum err vm_write32(struct vm *p_vm, uint32_t p_data, word_t p_addr);
 enum err vm_write64(struct vm *p_vm, uint64_t p_data, word_t p_addr);
+
+char *vm_mem_str_to_cstr(struct vm *p_vm, word_t p_addr);
 
 void vm_debug(struct vm *p_vm);
 void vm_run(struct vm *p_vm);
