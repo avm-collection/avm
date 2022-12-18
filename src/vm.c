@@ -196,6 +196,14 @@ void vm_dump_stack(struct vm *p_vm, FILE *p_file) {
 void vm_dump_call_stack(struct vm *p_vm, FILE *p_file) {
 	VM_NOTE(stderr, "Call stack:");
 
+	if (p_vm->cs <= 0) {
+		set_fg_color(COLOR_GREY, p_file);
+		fputs("EMPTY\n", p_file);
+		set_fg_color(COLOR_DEFAULT, p_file);
+
+		return;
+	}
+
 	for (word_t i = 0; i < p_vm->cs; ++ i) {
 		set_fg_color(COLOR_GREY, p_file);
 		fputs("from ", p_file);
@@ -222,7 +230,9 @@ void vm_panic(struct vm *p_vm, enum err p_err) {
 	fputc('\n', stderr);
 	VM_ERROR(stderr, err_str(p_err));
 	vm_dump_at(p_vm, stderr);
-	vm_dump_call_stack(p_vm, stderr);
+
+	if (p_vm->cs > 0)
+		vm_dump_call_stack(p_vm, stderr);
 
 	exit(p_err);
 }
