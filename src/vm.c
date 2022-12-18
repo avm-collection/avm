@@ -95,7 +95,7 @@ const char *err_to_str[] = {
 	[ERR_DIV_BY_ZERO]          = "Division by zero",
 	[ERR_MAX_FILES_OPEN]       = "Reached max limit of files open",
 	[ERR_INVALID_FMODE]        = "Invalid file mode",
-	[ERR_INVALID_FD]         = "Invalid file descriptor",
+	[ERR_INVALID_FD]           = "Invalid file descriptor",
 };
 
 #define FMODE_STR_SIZE 4
@@ -122,10 +122,10 @@ char *fmode_to_str(enum fmode p_fmode) {
 	} else {
 		if (p_fmode & FMODE_READ)
 			str[0] = 'r';
-		else if (p_fmode & FMODE_WRITE)
-			str[0] = 'w';
 		else if (p_fmode & FMODE_APPEND)
 			str[0] = 'a';
+		else if (p_fmode & FMODE_WRITE)
+			str[0] = 'w';
 		else {
 			free(str);
 
