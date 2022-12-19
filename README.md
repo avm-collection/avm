@@ -40,7 +40,7 @@ $ avm PROGRAM
 - [X] Executing from files
 - [X] Conditional instructions, jumps
 - [X] RAM
-- [ ] File reading, IO
+- [X] File reading, IO
 - [ ] Loading shared libraries
 
 ## Documentation
