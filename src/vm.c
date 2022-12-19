@@ -168,6 +168,15 @@ void vm_init(struct vm *p_vm, bool p_warnings, bool p_debug) {
 		exit(EXIT_FAILURE);
 	}
 	memset(p_vm->files, 0, MAX_OPEN_FILES * sizeof(struct file));
+
+	p_vm->files[0].file = stdin;
+	p_vm->files[0].mode = FMODE_READ;
+
+	p_vm->files[1].file = stdout;
+	p_vm->files[1].mode = FMODE_WRITE;
+
+	p_vm->files[2].file = stderr;
+	p_vm->files[2].mode = FMODE_WRITE;
 }
 
 void vm_destroy(struct vm *p_vm) {
@@ -387,30 +396,6 @@ enum err vm_write64(struct vm *p_vm, uint64_t p_data, word_t p_addr) {
 	p_vm->memory[p_addr + 7] =  p_data & 0x00000000000000FF;
 
 	return ERR_OK;
-}
-
-char *vm_mem_str_to_cstr(struct vm *p_vm, word_t p_addr) {
-	word_t   size;
-	enum err ret = vm_read64(p_vm, &size, p_addr);
-	if (ret != ERR_OK)
-		return NULL;
-
-	if (p_addr >= MEMORY_SIZE_BYTES - size - 7)
-		return NULL;
-
-	char *str = malloc(size + 1);
-	if (str == NULL) {
-		VM_ERROR(stderr, "malloc() fail near "__FILE__":%i", __LINE__);
-		exit(EXIT_FAILURE);
-	}
-
-	for (word_t i = 0; i < size; ++ i) {
-		str[i] = p_vm->memory[p_addr + 8 + i];
-	}
-
-	str[size] = 0;
-
-	return str;
 }
 
 static int vm_exec_next_inst(struct vm *p_vm) {
@@ -995,40 +980,41 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		break;
 
 	case OP_OPE:
-		if (p_vm->sp < 2)
+		if (p_vm->sp < 3)
 			return ERR_STACK_UNDERFLOW;
 
 		{
-			word_t      addr = p_vm->stack[p_vm->sp - 2].u64;
-			enum fmode fmode = (enum fmode)p_vm->stack[p_vm->sp - 1].u64;
+			word_t     addr = p_vm->stack[p_vm->sp - 3].u64;
+			word_t     size = p_vm->stack[p_vm->sp - 2].u64;
+			enum fmode mode = (enum fmode)p_vm->stack[p_vm->sp - 1].u64;
 
-			char *name = vm_mem_str_to_cstr(p_vm, addr);
-			if (name == NULL)
+			if (addr >= MEMORY_SIZE_BYTES - size + 1)
 				return ERR_INVALID_MEM_ACCESS;
 
-			-- p_vm->sp;
+			char name[size + 1];
+			strncpy(name, (char*)&p_vm->memory[addr], size);
+			name[size] = 0;
+
+			p_vm->sp -= 2;
 
 			for (word_t i = 0; i < MAX_OPEN_FILES; ++ i) {
 				if (p_vm->files[i].file == NULL) {
-					char *fmode_str = fmode_to_str(fmode);
-					if (fmode_str == NULL)
+					char *mode_str = fmode_to_str(mode);
+					if (mode_str == NULL)
 						return ERR_INVALID_FMODE;
 
-					p_vm->files[i].fmode = fmode;
-					p_vm->files[i].file  = fopen(name, fmode_str);
+					p_vm->files[i].mode = mode;
+					p_vm->files[i].file = fopen(name, mode_str);
 					if (p_vm->files[i].file == NULL)
 						p_vm->stack[p_vm->sp - 1].i64 = -1;
 					else
 						p_vm->stack[p_vm->sp - 1].u64 = i;
 
-					free(fmode_str);
-					free(name);
+					free(mode_str);
 
 					goto found;
 				}
 			}
-
-			free(name);
 
 			vm_panic(p_vm, ERR_MAX_FILES_OPEN);
 		}
@@ -1056,31 +1042,59 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 			return ERR_STACK_UNDERFLOW;
 
 		{
-			word_t  fd   = p_vm->stack[p_vm->sp - 2].u64;
-			uint8_t byte = (uint8_t)p_vm->stack[p_vm->sp - 1].u64;
+			word_t addr = p_vm->stack[p_vm->sp - 3].u64;
+			word_t size = p_vm->stack[p_vm->sp - 2].u64;
+			word_t fd   = p_vm->stack[p_vm->sp - 1].u64;
+
+			if (addr >= MEMORY_SIZE_BYTES - size + 1)
+				return ERR_INVALID_MEM_ACCESS;
 
 			if (fd >= MAX_OPEN_FILES || p_vm->files[fd].file == NULL)
 				return ERR_INVALID_FD;
 
-			fputc((int)byte, p_vm->files[fd].file);
-
 			p_vm->sp -= 2;
+
+			size_t count = fwrite(&p_vm->memory[addr], 1, size, p_vm->files[fd].file);
+			p_vm->stack[p_vm->sp - 1].u64 = (word_t)count == size? 1 : 0;
 		}
 
 		break;
 
 	case OP_RDF:
+		if (p_vm->sp < 3)
+			return ERR_STACK_UNDERFLOW;
+
+		{
+			word_t addr = p_vm->stack[p_vm->sp - 3].u64;
+			word_t size = p_vm->stack[p_vm->sp - 2].u64;
+			word_t fd   = p_vm->stack[p_vm->sp - 1].u64;
+
+			if (addr >= MEMORY_SIZE_BYTES - size + 1)
+				return ERR_INVALID_MEM_ACCESS;
+
+			if (fd >= MAX_OPEN_FILES || p_vm->files[fd].file == NULL)
+				return ERR_INVALID_FD;
+
+			p_vm->sp -= 2;
+
+			size_t count = fread(&p_vm->memory[addr], 1, size, p_vm->files[fd].file);
+			p_vm->stack[p_vm->sp - 1].u64 = (word_t)count == size? 1 : 0;
+		}
+
+		break;
+
+	case OP_SZF:
 		if (p_vm->sp < 1)
 			return ERR_STACK_UNDERFLOW;
 
 		{
 			word_t fd = p_vm->stack[p_vm->sp - 1].u64;
-
 			if (fd >= MAX_OPEN_FILES || p_vm->files[fd].file == NULL)
 				return ERR_INVALID_FD;
 
-			int byte = fgetc(p_vm->files[fd].file);
-			p_vm->stack[p_vm->sp - 1].i64 = byte == EOF? -1 : byte;
+			fseek(p_vm->files[fd].file, 0, SEEK_END);
+			p_vm->stack[p_vm->sp - 1].u64 = ftell(p_vm->files[fd].file);
+			fseek(p_vm->files[fd].file, 0, SEEK_SET);
 		}
 
 		break;

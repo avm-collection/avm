@@ -4,7 +4,7 @@
 #include <stdint.h>  /* uint64_t, uint8_t */
 #include <string.h>  /* memset, memcpy, strncmp, strcmp, strlen */
 #include <stdio.h>   /* stderr, fputs, fputc, putchar, fprintf, FILE, fflush,
-                        fopen, fclose, fread, fgetc */
+                        fopen, fclose, fread, fgetc, ftell, fseek */
 #include <stdbool.h> /* bool, true, false */
 #include <stdlib.h>  /* exit, malloc, free, EXIT_FAILURE */
 #include <errno.h>   /* strerror, errno */
@@ -144,6 +144,7 @@ enum opcode {
 	OP_CLO = 0x71,
 	OP_WRF = 0x72,
 	OP_RDF = 0x73,
+	OP_SZF = 0x74,
 
 	/* Debug */
 	OP_DMP = 0xF0,
@@ -181,7 +182,7 @@ char *fmode_to_str(enum fmode p_fmode);
 
 struct file {
 	FILE      *file;
-	enum fmode fmode;
+	enum fmode mode;
 };
 
 PACK(struct inst {
