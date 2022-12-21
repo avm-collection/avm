@@ -41,6 +41,8 @@
 
 #define MAX_OPEN_FILES 0x100
 
+#define INVALID_FD (word_t)-1
+
 #define FMT_HEX         "016llX"
 #define AS_FMT_HEX(P_X) (long long unsigned)(P_X)
 
@@ -227,12 +229,9 @@ void vm_panic(struct vm *p_vm, enum err p_err);
 
 void log_colored(FILE *p_file, enum color p_color, const char *p_fmt, ...);
 
-#define VM_ERROR(P_FILE, ...) \
-	log_colored(P_FILE, COLOR_BRIGHT_RED, __VA_ARGS__)
-#define VM_WARN(P_FILE, ...) \
-	log_colored(P_FILE, COLOR_BRIGHT_YELLOW, __VA_ARGS__)
-#define VM_NOTE(P_FILE, ...) \
-	log_colored(P_FILE, COLOR_BRIGHT_CYAN, __VA_ARGS__)
+#define VM_ERROR(P_FILE, ...) log_colored(P_FILE, COLOR_BRIGHT_RED,    __VA_ARGS__)
+#define VM_WARN(P_FILE,  ...) log_colored(P_FILE, COLOR_BRIGHT_YELLOW, __VA_ARGS__)
+#define VM_NOTE(P_FILE,  ...) log_colored(P_FILE, COLOR_BRIGHT_CYAN,   __VA_ARGS__)
 
 enum err vm_read8 (struct vm *p_vm, uint8_t  *p_data, word_t p_addr);
 enum err vm_read16(struct vm *p_vm, uint16_t *p_data, word_t p_addr);
@@ -244,12 +243,26 @@ enum err vm_write16(struct vm *p_vm, uint16_t p_data, word_t p_addr);
 enum err vm_write32(struct vm *p_vm, uint32_t p_data, word_t p_addr);
 enum err vm_write64(struct vm *p_vm, uint64_t p_data, word_t p_addr);
 
-char *vm_mem_str_to_cstr(struct vm *p_vm, word_t p_addr);
+word_t vm_get_free_fd(struct vm *p_vm);
 
 void vm_debug(struct vm *p_vm);
 void vm_run(struct vm *p_vm);
 
 void vm_exec_from_mem(struct vm *p_vm, struct inst *p_program, word_t p_program_size, word_t p_ep);
 void vm_exec_from_file(struct vm *p_vm, const char *p_path);
+
+inline bool vm_is_fd_valid(struct vm *p_vm, word_t p_fd) {
+	return p_fd < MAX_OPEN_FILES && p_vm->files[p_fd].file != NULL;
+}
+
+inline bool vm_is_chunk_valid(struct vm *p_vm, word_t p_addr, word_t p_size) {
+	UNUSED(p_vm);
+
+	return p_addr < MEMORY_SIZE_BYTES - p_size + 1;
+}
+
+inline value_t *vm_stack_top(struct vm *p_vm, word_t p_off) {
+	return &p_vm->stack[p_vm->sp - p_off - 1];
+}
 
 #endif

@@ -305,7 +305,7 @@ void log_colored(FILE *p_file, enum color p_color, const char *p_fmt, ...) {
 }
 
 enum err vm_read8(struct vm *p_vm, uint8_t *p_data, word_t p_addr) {
-	if (p_addr >= MEMORY_SIZE_BYTES)
+	if (!vm_is_chunk_valid(p_vm, p_addr, sizeof(uint8_t)))
 		return ERR_INVALID_MEM_ACCESS;
 
 	*p_data = p_vm->memory[p_addr];
@@ -314,7 +314,7 @@ enum err vm_read8(struct vm *p_vm, uint8_t *p_data, word_t p_addr) {
 }
 
 enum err vm_read16(struct vm *p_vm, uint16_t *p_data, word_t p_addr) {
-	if (p_addr >= MEMORY_SIZE_BYTES - 1)
+	if (!vm_is_chunk_valid(p_vm, p_addr, sizeof(uint16_t)))
 		return ERR_INVALID_MEM_ACCESS;
 
 	*p_data = ((uint16_t)p_vm->memory[p_addr] << 010) |
@@ -324,7 +324,7 @@ enum err vm_read16(struct vm *p_vm, uint16_t *p_data, word_t p_addr) {
 }
 
 enum err vm_read32(struct vm *p_vm, uint32_t *p_data, word_t p_addr) {
-	if (p_addr >= MEMORY_SIZE_BYTES - 3)
+	if (!vm_is_chunk_valid(p_vm, p_addr, sizeof(uint32_t)))
 		return ERR_INVALID_MEM_ACCESS;
 
 	*p_data = ((uint32_t)p_vm->memory[p_addr]     << 030) |
@@ -336,7 +336,7 @@ enum err vm_read32(struct vm *p_vm, uint32_t *p_data, word_t p_addr) {
 }
 
 enum err vm_read64(struct vm *p_vm, uint64_t *p_data, word_t p_addr) {
-	if (p_addr >= MEMORY_SIZE_BYTES - 7)
+	if (!vm_is_chunk_valid(p_vm, p_addr, sizeof(uint64_t)))
 		return ERR_INVALID_MEM_ACCESS;
 
 	*p_data = ((uint64_t)p_vm->memory[p_addr]     << 070) |
@@ -352,7 +352,7 @@ enum err vm_read64(struct vm *p_vm, uint64_t *p_data, word_t p_addr) {
 }
 
 enum err vm_write8(struct vm *p_vm, uint8_t p_data, word_t p_addr) {
-	if (p_addr >= MEMORY_SIZE_BYTES)
+	if (!vm_is_chunk_valid(p_vm, p_addr, sizeof(uint8_t)))
 		return ERR_INVALID_MEM_ACCESS;
 
 	p_vm->memory[p_addr] = p_data;
@@ -361,7 +361,7 @@ enum err vm_write8(struct vm *p_vm, uint8_t p_data, word_t p_addr) {
 }
 
 enum err vm_write16(struct vm *p_vm, uint16_t p_data, word_t p_addr) {
-	if (p_addr >= MEMORY_SIZE_BYTES - 1)
+	if (!vm_is_chunk_valid(p_vm, p_addr, sizeof(uint16_t)))
 		return ERR_INVALID_MEM_ACCESS;
 
 	p_vm->memory[p_addr]     = (p_data & 0xFF00) >> 010;
@@ -371,7 +371,7 @@ enum err vm_write16(struct vm *p_vm, uint16_t p_data, word_t p_addr) {
 }
 
 enum err vm_write32(struct vm *p_vm, uint32_t p_data, word_t p_addr) {
-	if (p_addr >= MEMORY_SIZE_BYTES - 3)
+	if (!vm_is_chunk_valid(p_vm, p_addr, sizeof(uint32_t)))
 		return ERR_INVALID_MEM_ACCESS;
 
 	p_vm->memory[p_addr]     = (p_data & 0xFF000000) >> 030;
@@ -383,7 +383,7 @@ enum err vm_write32(struct vm *p_vm, uint32_t p_data, word_t p_addr) {
 }
 
 enum err vm_write64(struct vm *p_vm, uint64_t p_data, word_t p_addr) {
-	if (p_addr >= MEMORY_SIZE_BYTES - 7)
+	if (!vm_is_chunk_valid(p_vm, p_addr, sizeof(uint64_t)))
 		return ERR_INVALID_MEM_ACCESS;
 
 	p_vm->memory[p_addr]     = (p_data & 0xFF00000000000000) >> 070;
@@ -397,6 +397,19 @@ enum err vm_write64(struct vm *p_vm, uint64_t p_data, word_t p_addr) {
 
 	return ERR_OK;
 }
+
+word_t vm_get_free_fd(struct vm *p_vm) {
+	for (word_t i = 0; i < MAX_OPEN_FILES; ++ i) {
+		if (p_vm->files[i].file == NULL)
+			return i;
+	}
+
+	return INVALID_FD;
+}
+
+#define STACK_ARGS_COUNT(P_COUNT) \
+	if (p_vm->sp < P_COUNT) \
+		return ERR_STACK_UNDERFLOW
 
 static int vm_exec_next_inst(struct vm *p_vm) {
 	struct inst *inst = &p_vm->program[p_vm->ip];
@@ -412,146 +425,95 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 
 		break;
 
-	case OP_POP:
-		if (p_vm->sp < 1)
-			return ERR_STACK_UNDERFLOW;
-
+	case OP_POP: STACK_ARGS_COUNT(1);
 		-- p_vm->sp;
 
 		break;
 
-	case OP_ADD:
-		if (p_vm->sp < 2)
-			return ERR_STACK_UNDERFLOW;
-
-		p_vm->stack[p_vm->sp - 2].u64 += p_vm->stack[p_vm->sp - 1].u64;
+	case OP_ADD: STACK_ARGS_COUNT(2);
+		vm_stack_top(p_vm, 1)->u64 += vm_stack_top(p_vm, 0)->u64;
 		-- p_vm->sp;
 
 		break;
 
-	case OP_SUB:
-		if (p_vm->sp < 2)
-			return ERR_STACK_UNDERFLOW;
-
-		p_vm->stack[p_vm->sp - 2].u64 -= p_vm->stack[p_vm->sp - 1].u64;
+	case OP_SUB: STACK_ARGS_COUNT(2);
+		vm_stack_top(p_vm, 1)->u64 -= vm_stack_top(p_vm, 0)->u64;
 		-- p_vm->sp;
 
 		break;
 
-	case OP_MUL:
-		if (p_vm->sp < 2)
-			return ERR_STACK_UNDERFLOW;
-
-		p_vm->stack[p_vm->sp - 2].u64 *= p_vm->stack[p_vm->sp - 1].u64;
+	case OP_MUL: STACK_ARGS_COUNT(2);
+		vm_stack_top(p_vm, 1)->u64 *= vm_stack_top(p_vm, 0)->u64;
 		-- p_vm->sp;
 
 		break;
 
-	case OP_DIV:
-		if (p_vm->sp < 2)
-			return ERR_STACK_UNDERFLOW;
+	case OP_DIV: STACK_ARGS_COUNT(2); {
+		word_t b = vm_stack_top(p_vm, 0)->u64;
+		if (b == 0)
+			return ERR_DIV_BY_ZERO;
 
-		{
-			word_t b = p_vm->stack[p_vm->sp - 1].u64;
-			if (b == 0)
-				return ERR_DIV_BY_ZERO;
+		vm_stack_top(p_vm, 1)->u64 /= b;
+		-- p_vm->sp;
+	} break;
 
-			p_vm->stack[p_vm->sp - 2].u64 /= b;
-			-- p_vm->sp;
-		}
-
-		break;
-
-	case OP_MOD:
-		if (p_vm->sp < 2)
-			return ERR_STACK_UNDERFLOW;
-
-		p_vm->stack[p_vm->sp - 2].u64 %= p_vm->stack[p_vm->sp - 1].u64;
+	case OP_MOD: STACK_ARGS_COUNT(2);
+		vm_stack_top(p_vm, 1)->u64 %= vm_stack_top(p_vm, 0)->u64;
 		-- p_vm->sp;
 
 		break;
 
-	case OP_INC:
-		if (p_vm->sp < 1)
-			return ERR_STACK_UNDERFLOW;
-
-		++ p_vm->stack[p_vm->sp - 1].u64;
+	case OP_INC: STACK_ARGS_COUNT(1);
+		++ vm_stack_top(p_vm, 0)->u64;
 
 		break;
 
-	case OP_DEC:
-		if (p_vm->sp < 1)
-			return ERR_STACK_UNDERFLOW;
-
-		-- p_vm->stack[p_vm->sp - 1].u64;
+	case OP_DEC: STACK_ARGS_COUNT(1);
+		-- vm_stack_top(p_vm, 0)->u64;
 
 		break;
 
-	case OP_FAD:
-		if (p_vm->sp < 2)
-			return ERR_STACK_UNDERFLOW;
-
-		p_vm->stack[p_vm->sp - 2].f64 += p_vm->stack[p_vm->sp - 1].f64;
+	case OP_FAD: STACK_ARGS_COUNT(2);
+		vm_stack_top(p_vm, 1)->f64 += vm_stack_top(p_vm, 0)->f64;
 		-- p_vm->sp;
 
 		break;
 
-	case OP_FSB:
-		if (p_vm->sp < 2)
-			return ERR_STACK_UNDERFLOW;
-
-		p_vm->stack[p_vm->sp - 2].f64 -= p_vm->stack[p_vm->sp - 1].f64;
+	case OP_FSB: STACK_ARGS_COUNT(2);
+		vm_stack_top(p_vm, 1)->f64 -= vm_stack_top(p_vm, 0)->f64;
 		-- p_vm->sp;
 
 		break;
 
-	case OP_FMU:
-		if (p_vm->sp < 2)
-			return ERR_STACK_UNDERFLOW;
-
-		p_vm->stack[p_vm->sp - 2].f64 *= p_vm->stack[p_vm->sp - 1].f64;
+	case OP_FMU: STACK_ARGS_COUNT(2);
+		vm_stack_top(p_vm, 1)->f64 *= vm_stack_top(p_vm, 0)->f64;
 		-- p_vm->sp;
 
 		break;
 
-	case OP_FDI:
-		if (p_vm->sp < 2)
-			return ERR_STACK_UNDERFLOW;
-
-		p_vm->stack[p_vm->sp - 2].f64 /= p_vm->stack[p_vm->sp - 1].f64;
+	case OP_FDI: STACK_ARGS_COUNT(2);
+		vm_stack_top(p_vm, 1)->f64 /= vm_stack_top(p_vm, 0)->f64;
 		-- p_vm->sp;
 
 		break;
 
-	case OP_FIN:
-		if (p_vm->sp < 1)
-			return ERR_STACK_UNDERFLOW;
-
-		++ p_vm->stack[p_vm->sp - 1].f64;
+	case OP_FIN: STACK_ARGS_COUNT(1);
+		++ vm_stack_top(p_vm, 0)->f64;
 
 		break;
 
-	case OP_FDE:
-		if (p_vm->sp < 1)
-			return ERR_STACK_UNDERFLOW;
-
-		-- p_vm->stack[p_vm->sp - 1].f64;
+	case OP_FDE: STACK_ARGS_COUNT(1);
+		-- vm_stack_top(p_vm, 0)->f64;
 
 		break;
 
-	case OP_NEG:
-		if (p_vm->sp < 1)
-			return ERR_STACK_UNDERFLOW;
-
-		p_vm->stack[p_vm->sp - 1].i64 = -p_vm->stack[p_vm->sp - 1].i64;
+	case OP_NEG: STACK_ARGS_COUNT(1);
+		vm_stack_top(p_vm, 0)->i64 = -vm_stack_top(p_vm, 0)->i64;
 
 		break;
 
-	case OP_NOT:
-		if (p_vm->sp < 1)
-			return ERR_STACK_UNDERFLOW;
-
-		p_vm->stack[p_vm->sp - 1].u64 = !p_vm->stack[p_vm->sp - 1].u64;
+	case OP_NOT: STACK_ARGS_COUNT(1);
+		vm_stack_top(p_vm, 0)->u64 = !vm_stack_top(p_vm, 0)->u64;
 
 		break;
 
@@ -563,11 +525,8 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 
 		break;
 
-	case OP_JNZ:
-		if (p_vm->sp < 1)
-			return ERR_STACK_UNDERFLOW;
-
-		if (p_vm->stack[p_vm->sp - 1].u64) {
+	case OP_JNZ: STACK_ARGS_COUNT(1);
+		if (vm_stack_top(p_vm, 0)->u64) {
 			if (inst->data.u64 >= p_vm->program_size)
 				return ERR_INVALID_INST_ACCESS;
 
@@ -578,182 +537,110 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 
 		break;
 
-	case OP_EQU:
-		if (p_vm->sp < 2)
-			return ERR_STACK_UNDERFLOW;
-
-		p_vm->stack[p_vm->sp - 2].u64 = p_vm->stack[p_vm->sp - 2].i64 ==
-		                                 p_vm->stack[p_vm->sp - 1].i64;
+	case OP_EQU: STACK_ARGS_COUNT(2);
+		vm_stack_top(p_vm, 1)->u64 = vm_stack_top(p_vm, 1)->i64 == vm_stack_top(p_vm, 0)->i64;
 		-- p_vm->sp;
 
 		break;
 
-	case OP_NEQ:
-		if (p_vm->sp < 2)
-			return ERR_STACK_UNDERFLOW;
-
-		p_vm->stack[p_vm->sp - 2].u64 = p_vm->stack[p_vm->sp - 2].i64 !=
-		                                 p_vm->stack[p_vm->sp - 1].i64;
+	case OP_NEQ: STACK_ARGS_COUNT(2);
+		vm_stack_top(p_vm, 1)->u64 = vm_stack_top(p_vm, 1)->i64 != vm_stack_top(p_vm, 0)->i64;
 		-- p_vm->sp;
 
 		break;
 
-	case OP_GRT:
-		if (p_vm->sp < 2)
-			return ERR_STACK_UNDERFLOW;
-
-		p_vm->stack[p_vm->sp - 2].u64 = p_vm->stack[p_vm->sp - 2].i64 >
-		                                 p_vm->stack[p_vm->sp - 1].i64;
+	case OP_GRT: STACK_ARGS_COUNT(2);
+		vm_stack_top(p_vm, 1)->u64 = vm_stack_top(p_vm, 1)->i64 > vm_stack_top(p_vm, 0)->i64;
 		-- p_vm->sp;
 
 		break;
 
-	case OP_GEQ:
-		if (p_vm->sp < 2)
-			return ERR_STACK_UNDERFLOW;
-
-		p_vm->stack[p_vm->sp - 2].u64 = p_vm->stack[p_vm->sp - 2].i64 >=
-		                                 p_vm->stack[p_vm->sp - 1].i64;
+	case OP_GEQ: STACK_ARGS_COUNT(2);
+		vm_stack_top(p_vm, 1)->u64 = vm_stack_top(p_vm, 1)->i64 >= vm_stack_top(p_vm, 0)->i64;
 		-- p_vm->sp;
 
 		break;
 
-	case OP_LES:
-		if (p_vm->sp < 2)
-			return ERR_STACK_UNDERFLOW;
-
-		p_vm->stack[p_vm->sp - 2].u64 = p_vm->stack[p_vm->sp - 2].i64 <
-		                                 p_vm->stack[p_vm->sp - 1].i64;
+	case OP_LES: STACK_ARGS_COUNT(2);
+		vm_stack_top(p_vm, 1)->u64 = vm_stack_top(p_vm, 1)->i64 < vm_stack_top(p_vm, 0)->i64;
 		-- p_vm->sp;
 
 		break;
 
-	case OP_LEQ:
-		if (p_vm->sp < 2)
-			return ERR_STACK_UNDERFLOW;
-
-		p_vm->stack[p_vm->sp - 2].u64 = p_vm->stack[p_vm->sp - 2].i64 <=
-		                                 p_vm->stack[p_vm->sp - 1].i64;
+	case OP_LEQ: STACK_ARGS_COUNT(2);
+		vm_stack_top(p_vm, 1)->u64 = vm_stack_top(p_vm, 1)->i64 <= vm_stack_top(p_vm, 0)->i64;
 		-- p_vm->sp;
 
 		break;
 
-	case OP_UEQ:
-		if (p_vm->sp < 2)
-			return ERR_STACK_UNDERFLOW;
-
-		p_vm->stack[p_vm->sp - 2].u64 = p_vm->stack[p_vm->sp - 2].u64 ==
-		                                 p_vm->stack[p_vm->sp - 1].u64;
+	case OP_UEQ: STACK_ARGS_COUNT(2);
+		vm_stack_top(p_vm, 1)->u64 = vm_stack_top(p_vm, 1)->u64 == vm_stack_top(p_vm, 0)->u64;
 		-- p_vm->sp;
 
 		break;
 
-	case OP_UNE:
-		if (p_vm->sp < 2)
-			return ERR_STACK_UNDERFLOW;
-
-		p_vm->stack[p_vm->sp - 2].u64 = p_vm->stack[p_vm->sp - 2].u64 !=
-		                                 p_vm->stack[p_vm->sp - 1].u64;
+	case OP_UNE: STACK_ARGS_COUNT(2);
+		vm_stack_top(p_vm, 1)->u64 = vm_stack_top(p_vm, 1)->u64 != vm_stack_top(p_vm, 0)->u64;
 		-- p_vm->sp;
 
 		break;
 
-	case OP_UGR:
-		if (p_vm->sp < 2)
-			return ERR_STACK_UNDERFLOW;
-
-		p_vm->stack[p_vm->sp - 2].u64 = p_vm->stack[p_vm->sp - 2].u64 >
-		                                 p_vm->stack[p_vm->sp - 1].u64;
+	case OP_UGR: STACK_ARGS_COUNT(2);
+		vm_stack_top(p_vm, 1)->u64 = vm_stack_top(p_vm, 1)->u64 > vm_stack_top(p_vm, 0)->u64;
 		-- p_vm->sp;
 
 		break;
 
-	case OP_UGQ:
-		if (p_vm->sp < 2)
-			return ERR_STACK_UNDERFLOW;
-
-		p_vm->stack[p_vm->sp - 2].u64 = p_vm->stack[p_vm->sp - 2].u64 >=
-		                                 p_vm->stack[p_vm->sp - 1].u64;
+	case OP_UGQ: STACK_ARGS_COUNT(2);
+		vm_stack_top(p_vm, 1)->u64 = vm_stack_top(p_vm, 1)->u64 >= vm_stack_top(p_vm, 0)->u64;
 		-- p_vm->sp;
 
 		break;
 
-	case OP_ULE:
-		if (p_vm->sp < 2)
-			return ERR_STACK_UNDERFLOW;
-
-		p_vm->stack[p_vm->sp - 2].u64 = p_vm->stack[p_vm->sp - 2].u64 <
-		                                 p_vm->stack[p_vm->sp - 1].u64;
+	case OP_ULE: STACK_ARGS_COUNT(2);
+		vm_stack_top(p_vm, 1)->u64 = vm_stack_top(p_vm, 1)->u64 == vm_stack_top(p_vm, 0)->u64;
 		-- p_vm->sp;
 
 		break;
 
-	case OP_ULQ:
-		if (p_vm->sp < 2)
-			return ERR_STACK_UNDERFLOW;
-
-		p_vm->stack[p_vm->sp - 2].u64 = p_vm->stack[p_vm->sp - 2].u64 <=
-		                                 p_vm->stack[p_vm->sp - 1].u64;
+	case OP_ULQ: STACK_ARGS_COUNT(2);
+		vm_stack_top(p_vm, 1)->u64 = vm_stack_top(p_vm, 1)->u64 <= vm_stack_top(p_vm, 0)->u64;
 		-- p_vm->sp;
 
 		break;
 
-	case OP_FEQ:
-		if (p_vm->sp < 2)
-			return ERR_STACK_UNDERFLOW;
-
-		p_vm->stack[p_vm->sp - 2].u64 = p_vm->stack[p_vm->sp - 2].f64 ==
-		                                 p_vm->stack[p_vm->sp - 1].f64;
+	case OP_FEQ: STACK_ARGS_COUNT(2);
+		vm_stack_top(p_vm, 1)->u64 = vm_stack_top(p_vm, 1)->f64 == vm_stack_top(p_vm, 0)->f64;
 		-- p_vm->sp;
 
 		break;
 
-	case OP_FNE:
-		if (p_vm->sp < 2)
-			return ERR_STACK_UNDERFLOW;
-
-		p_vm->stack[p_vm->sp - 2].u64 = p_vm->stack[p_vm->sp - 2].f64 !=
-		                                 p_vm->stack[p_vm->sp - 1].f64;
+	case OP_FNE: STACK_ARGS_COUNT(2);
+		vm_stack_top(p_vm, 1)->u64 = vm_stack_top(p_vm, 1)->f64 != vm_stack_top(p_vm, 0)->f64;
 		-- p_vm->sp;
 
 		break;
 
-	case OP_FGR:
-		if (p_vm->sp < 2)
-			return ERR_STACK_UNDERFLOW;
-
-		p_vm->stack[p_vm->sp - 2].u64 = p_vm->stack[p_vm->sp - 2].f64 >
-		                                 p_vm->stack[p_vm->sp - 1].f64;
+	case OP_FGR: STACK_ARGS_COUNT(2);
+		vm_stack_top(p_vm, 1)->u64 = vm_stack_top(p_vm, 1)->f64 > vm_stack_top(p_vm, 0)->f64;
 		-- p_vm->sp;
 
 		break;
 
-	case OP_FGQ:
-		if (p_vm->sp < 2)
-			return ERR_STACK_UNDERFLOW;
-
-		p_vm->stack[p_vm->sp - 2].u64 = p_vm->stack[p_vm->sp - 2].f64 >=
-		                                 p_vm->stack[p_vm->sp - 1].f64;
+	case OP_FGQ: STACK_ARGS_COUNT(2);
+		vm_stack_top(p_vm, 1)->u64 = vm_stack_top(p_vm, 1)->f64 >= vm_stack_top(p_vm, 0)->f64;
 		-- p_vm->sp;
 
 		break;
 
-	case OP_FLE:
-		if (p_vm->sp < 2)
-			return ERR_STACK_UNDERFLOW;
-
-		p_vm->stack[p_vm->sp - 2].u64 = p_vm->stack[p_vm->sp - 2].f64 <
-		                                 p_vm->stack[p_vm->sp - 1].f64;
+	case OP_FLE: STACK_ARGS_COUNT(2);
+		vm_stack_top(p_vm, 1)->u64 = vm_stack_top(p_vm, 1)->f64 < vm_stack_top(p_vm, 0)->f64;
 		-- p_vm->sp;
 
 		break;
 
-	case OP_FLQ:
-		if (p_vm->sp < 2)
-			return ERR_STACK_UNDERFLOW;
-
-		p_vm->stack[p_vm->sp - 2].u64 = p_vm->stack[p_vm->sp - 2].f64 <=
-		                                 p_vm->stack[p_vm->sp - 1].f64;
+	case OP_FLQ: STACK_ARGS_COUNT(2);
+		vm_stack_top(p_vm, 1)->u64 = vm_stack_top(p_vm, 1)->f64 <= vm_stack_top(p_vm, 0)->f64;
 		-- p_vm->sp;
 
 		break;
@@ -765,7 +652,6 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 			return ERR_CALL_STACK_OVERFLOW;
 
 		p_vm->call_stack[p_vm->cs ++] = p_vm->ip + 1;
-
 		p_vm->ip = inst->data.u64 - 1;
 
 		break;
@@ -778,326 +664,230 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 
 		break;
 
-	case OP_DUP:
+	case OP_DUP: STACK_ARGS_COUNT(inst->data.u64 + 1);
 		if (p_vm->sp >= STACK_CAPACITY)
 			return ERR_STACK_OVERFLOW;
-		else if (p_vm->sp < inst->data.u64 + 1)
-			return ERR_STACK_UNDERFLOW;
-
-		p_vm->stack[p_vm->sp] = p_vm->stack[p_vm->sp - inst->data.u64 - 1];
 
 		++ p_vm->sp;
+		vm_stack_top(p_vm, 0)->u64 = vm_stack_top(p_vm, inst->data.u64 + 1)->u64;
 
 		break;
 
-	case OP_SWP:
-		if (p_vm->sp < 2)
-			return ERR_STACK_UNDERFLOW;
-		else if (p_vm->sp < inst->data.u64 + 2)
-			return ERR_STACK_UNDERFLOW;
-
-		word_t tmp = p_vm->stack[p_vm->sp - 1].u64;
-		p_vm->stack[p_vm->sp - 1].u64 = p_vm->stack[p_vm->sp - inst->data.u64 - 2].u64;
-		p_vm->stack[p_vm->sp - inst->data.u64 - 2].u64 = tmp;
-
-		break;
+	case OP_SWP: STACK_ARGS_COUNT(inst->data.u64 + 2); {
+		word_t tmp = vm_stack_top(p_vm, 0)->u64;
+		vm_stack_top(p_vm, 0)->u64 = vm_stack_top(p_vm, inst->data.u64 + 1)->u64;
+		vm_stack_top(p_vm, inst->data.u64 + 1)->u64 = tmp;
+	} break;
 
 	case OP_EMP:
 		if (p_vm->sp >= STACK_CAPACITY)
 			return ERR_STACK_OVERFLOW;
 
-		if (p_vm->sp <= 0)
-			p_vm->stack[p_vm->sp ++].u64 = 1;
-		else
-			p_vm->stack[p_vm->sp ++].u64 = 0;
+		++ p_vm->sp;
+		vm_stack_top(p_vm, 0)->u64 = p_vm->sp <= 0;
 
 		break;
 
-	case OP_SET:
-		if (p_vm->sp < 3)
-			return ERR_STACK_UNDERFLOW;
+	case OP_SET: STACK_ARGS_COUNT(3); {
+		word_t  addr = vm_stack_top(p_vm, 2)->u64;
+		uint8_t val  = vm_stack_top(p_vm, 1)->u64;
+		word_t  size = vm_stack_top(p_vm, 0)->u64;
 
-		{
-			word_t  addr = p_vm->stack[p_vm->sp - 3].u64;
-			uint8_t val  = p_vm->stack[p_vm->sp - 2].u64;
-			word_t  size = p_vm->stack[p_vm->sp - 1].u64;
+		if (!vm_is_chunk_valid(p_vm, addr, size))
+			return ERR_INVALID_MEM_ACCESS;
 
-			if (addr + size >= MEMORY_SIZE_BYTES)
-				return ERR_INVALID_MEM_ACCESS;
+		p_vm->sp -= 3;
 
-			p_vm->sp -= 3;
+		memset(&p_vm->memory[addr], val, size);
+	} break;
 
-			memset(&p_vm->memory[addr], val, size);
-		}
+	case OP_CPY: STACK_ARGS_COUNT(3); {
+		word_t to   = vm_stack_top(p_vm, 2)->u64;
+		word_t from = vm_stack_top(p_vm, 1)->u64;
+		word_t size = vm_stack_top(p_vm, 0)->u64;
 
-		break;
+		if (!vm_is_chunk_valid(p_vm, to, size) || !vm_is_chunk_valid(p_vm, from, size))
+			return ERR_INVALID_MEM_ACCESS;
 
-	case OP_CPY:
-		if (p_vm->sp < 3)
-			return ERR_STACK_UNDERFLOW;
+		p_vm->sp -= 3;
 
-		{
-			word_t to   = p_vm->stack[p_vm->sp - 3].u64;
-			word_t from = p_vm->stack[p_vm->sp - 2].u64;
-			word_t size = p_vm->stack[p_vm->sp - 1].u64;
+		memcpy(&p_vm->memory[to], &p_vm->memory[from], size);
+	} break;
 
-			if (to + size >= MEMORY_SIZE_BYTES || from + size >= MEMORY_SIZE_BYTES)
-				return ERR_INVALID_MEM_ACCESS;
+	case OP_R08: STACK_ARGS_COUNT(1); {
+		word_t addr = vm_stack_top(p_vm, 0)->u64;
 
-			p_vm->sp -= 3;
+		uint8_t data;
+		enum err ret = vm_read8(p_vm, &data, addr);
+		if (ret != ERR_OK)
+			return ret;
 
-			memcpy(&p_vm->memory[to], &p_vm->memory[from], size);
-		}
+		vm_stack_top(p_vm, 0)->u64 = data;
+	} break;
 
-		break;
+	case OP_R16: STACK_ARGS_COUNT(1); {
+		word_t addr = vm_stack_top(p_vm, 0)->u64;
 
-	case OP_R08:
-		if (p_vm->sp < 1)
-			return ERR_STACK_UNDERFLOW;
+		uint16_t data;
+		enum err ret = vm_read16(p_vm, &data, addr);
+		if (ret != ERR_OK)
+			return ret;
 
-		{
-			word_t  addr = p_vm->stack[p_vm->sp - 1].u64;
-			uint8_t data;
-			enum err ret = vm_read8(p_vm, &data, addr);
-			if (ret != ERR_OK)
-				return ret;
+		vm_stack_top(p_vm, 0)->u64 = data;
+	} break;
 
-			p_vm->stack[p_vm->sp - 1].u64 = data;
-		}
+	case OP_R32: STACK_ARGS_COUNT(1); {
+		word_t addr = vm_stack_top(p_vm, 0)->u64;
 
-		break;
+		uint32_t data;
+		enum err ret = vm_read32(p_vm, &data, addr);
+		if (ret != ERR_OK)
+			return ret;
 
-	case OP_R16:
-		if (p_vm->sp < 1)
-			return ERR_STACK_UNDERFLOW;
+		vm_stack_top(p_vm, 0)->u64 = data;
+	} break;
 
-		{
-			word_t   addr = p_vm->stack[p_vm->sp - 1].u64;
-			uint16_t data;
-			enum err ret = vm_read16(p_vm, &data, addr);
-			if (ret != ERR_OK)
-				return ret;
+	case OP_R64: STACK_ARGS_COUNT(1); {
+		word_t addr = vm_stack_top(p_vm, 0)->u64;
 
-			p_vm->stack[p_vm->sp - 1].u64 = data;
-		}
+		uint64_t data;
+		enum err ret = vm_read64(p_vm, &data, addr);
+		if (ret != ERR_OK)
+			return ret;
 
-		break;
+		vm_stack_top(p_vm, 0)->u64 = data;
+	} break;
 
-	case OP_R32:
-		if (p_vm->sp < 1)
-			return ERR_STACK_UNDERFLOW;
+	case OP_W08: STACK_ARGS_COUNT(2); {
+		word_t  addr = vm_stack_top(p_vm, 1)->u64;
+		uint8_t data = vm_stack_top(p_vm, 0)->u64;
 
-		{
-			word_t   addr = p_vm->stack[p_vm->sp - 1].u64;
-			uint32_t data;
-			enum err ret = vm_read32(p_vm, &data, addr);
-			if (ret != ERR_OK)
-				return ret;
+		enum err ret = vm_write8(p_vm, data, addr);
+		if (ret != ERR_OK)
+			return ret;
 
-			p_vm->stack[p_vm->sp - 1].u64 = data;
-		}
+		p_vm->sp -= 2;
+	} break;
 
-		break;
+	case OP_W16: STACK_ARGS_COUNT(2); {
+		word_t  addr = vm_stack_top(p_vm, 1)->u64;
+		uint8_t data = vm_stack_top(p_vm, 0)->u64;
 
-	case OP_R64:
-		if (p_vm->sp < 1)
-			return ERR_STACK_UNDERFLOW;
+		enum err ret = vm_write16(p_vm, data, addr);
+		if (ret != ERR_OK)
+			return ret;
 
-		{
-			word_t   addr = p_vm->stack[p_vm->sp - 1].u64;
-			uint64_t data;
-			enum err ret = vm_read64(p_vm, &data, addr);
-			if (ret != ERR_OK)
-				return ret;
+		p_vm->sp -= 2;
+	} break;
 
-			p_vm->stack[p_vm->sp - 1].u64 = data;
-		}
+	case OP_W32: STACK_ARGS_COUNT(2); {
+		word_t  addr = vm_stack_top(p_vm, 1)->u64;
+		uint8_t data = vm_stack_top(p_vm, 0)->u64;
 
-		break;
-
-	case OP_W08:
-		if (p_vm->sp < 2)
-			return ERR_STACK_UNDERFLOW;
-
-		{
-			word_t  addr = p_vm->stack[p_vm->sp - 2].u64;
-			uint8_t data = p_vm->stack[p_vm->sp - 1].u64;
-			enum err ret = vm_write8(p_vm, data, addr);
-			if (ret != ERR_OK)
-				return ret;
+		enum err ret = vm_write32(p_vm, data, addr);
+		if (ret != ERR_OK)
+			return ret;
 
-			p_vm->sp -= 2;
-		}
+		p_vm->sp -= 2;
+	} break;
 
-		break;
-
-	case OP_W16:
-		if (p_vm->sp < 2)
-			return ERR_STACK_UNDERFLOW;
-
-		{
-			word_t   addr = p_vm->stack[p_vm->sp - 2].u64;
-			uint16_t data = p_vm->stack[p_vm->sp - 1].u64;
-			enum err ret = vm_write16(p_vm, data, addr);
-			if (ret != ERR_OK)
-				return ret;
+	case OP_W64: STACK_ARGS_COUNT(2); {
+		word_t  addr = vm_stack_top(p_vm, 1)->u64;
+		uint8_t data = vm_stack_top(p_vm, 0)->u64;
 
-			p_vm->sp -= 2;
-		}
+		enum err ret = vm_write64(p_vm, data, addr);
+		if (ret != ERR_OK)
+			return ret;
 
-		break;
+		p_vm->sp -= 2;
+	} break;
 
-	case OP_W32:
-		if (p_vm->sp < 2)
-			return ERR_STACK_UNDERFLOW;
+	case OP_OPE: STACK_ARGS_COUNT(3); {
+		word_t     addr = vm_stack_top(p_vm, 2)->u64;
+		word_t     size = vm_stack_top(p_vm, 1)->u64;
+		enum fmode mode = vm_stack_top(p_vm, 0)->u64;
 
-		{
-			word_t   addr = p_vm->stack[p_vm->sp - 2].u64;
-			uint32_t data = p_vm->stack[p_vm->sp - 1].u64;
-			enum err ret = vm_write32(p_vm, data, addr);
-			if (ret != ERR_OK)
-				return ret;
+		if (!vm_is_chunk_valid(p_vm, addr, size))
+			return ERR_INVALID_MEM_ACCESS;
 
-			p_vm->sp -= 2;
-		}
+		char name[size + 1];
+		strncpy(name, (char*)&p_vm->memory[addr], size);
+		name[size] = 0;
 
-		break;
+		p_vm->sp -= 2;
 
-	case OP_W64:
-		if (p_vm->sp < 2)
-			return ERR_STACK_UNDERFLOW;
+		word_t fd = vm_get_free_fd(p_vm);
+		if (fd == INVALID_FD)
+			return ERR_MAX_FILES_OPEN;
 
-		{
-			word_t   addr = p_vm->stack[p_vm->sp - 2].u64;
-			uint64_t data = p_vm->stack[p_vm->sp - 1].u64;
-			enum err ret = vm_write64(p_vm, data, addr);
-			if (ret != ERR_OK)
-				return ret;
+		struct file *f = &p_vm->files[fd];
 
-			p_vm->sp -= 2;
-		}
+		char *mode_str = fmode_to_str(mode);
+		if (mode_str == NULL)
+			return ERR_INVALID_FMODE;
 
-		break;
+		f->mode = mode;
+		f->file = fopen(name, mode_str);
 
-	case OP_OPE:
-		if (p_vm->sp < 3)
-			return ERR_STACK_UNDERFLOW;
+		vm_stack_top(p_vm, 0)->u64 = f->file == NULL? INVALID_FD : fd;
 
-		{
-			word_t     addr = p_vm->stack[p_vm->sp - 3].u64;
-			word_t     size = p_vm->stack[p_vm->sp - 2].u64;
-			enum fmode mode = (enum fmode)p_vm->stack[p_vm->sp - 1].u64;
+		free(mode_str);
+	} break;
 
-			if (addr >= MEMORY_SIZE_BYTES - size + 1)
-				return ERR_INVALID_MEM_ACCESS;
+	case OP_CLO: STACK_ARGS_COUNT(1); {
+		word_t fd = p_vm->stack[-- p_vm->sp].u64;
+		if (!vm_is_fd_valid(p_vm, fd))
+			return ERR_INVALID_FD;
 
-			char name[size + 1];
-			strncpy(name, (char*)&p_vm->memory[addr], size);
-			name[size] = 0;
+		struct file *f = &p_vm->files[fd];
 
-			p_vm->sp -= 2;
+		fclose(f->file);
+		f->file = NULL;
+	} break;
 
-			for (word_t i = 0; i < MAX_OPEN_FILES; ++ i) {
-				if (p_vm->files[i].file == NULL) {
-					char *mode_str = fmode_to_str(mode);
-					if (mode_str == NULL)
-						return ERR_INVALID_FMODE;
+	case OP_WRF: STACK_ARGS_COUNT(2); {
+		word_t addr = vm_stack_top(p_vm, 2)->u64;
+		word_t size = vm_stack_top(p_vm, 1)->u64;
+		word_t fd   = vm_stack_top(p_vm, 0)->u64;
 
-					p_vm->files[i].mode = mode;
-					p_vm->files[i].file = fopen(name, mode_str);
-					if (p_vm->files[i].file == NULL)
-						p_vm->stack[p_vm->sp - 1].i64 = -1;
-					else
-						p_vm->stack[p_vm->sp - 1].u64 = i;
+		if (!vm_is_chunk_valid(p_vm, addr, size))
+			return ERR_INVALID_MEM_ACCESS;
+		else if (!vm_is_fd_valid(p_vm, fd))
+			return ERR_INVALID_FD;
 
-					free(mode_str);
+		p_vm->sp -= 2;
 
-					goto found;
-				}
-			}
+		size_t ret = fwrite(&p_vm->memory[addr], 1, size, p_vm->files[fd].file);
+		vm_stack_top(p_vm, 0)->u64 = (word_t)(ret < 1);
+	} break;
 
-			vm_panic(p_vm, ERR_MAX_FILES_OPEN);
-		}
+	case OP_RDF: STACK_ARGS_COUNT(3); {
+		word_t addr = vm_stack_top(p_vm, 2)->u64;
+		word_t size = vm_stack_top(p_vm, 1)->u64;
+		word_t fd   = vm_stack_top(p_vm, 0)->u64;
 
-	found:
-		break;
+		if (!vm_is_chunk_valid(p_vm, addr, size))
+			return ERR_INVALID_MEM_ACCESS;
+		else if (!vm_is_fd_valid(p_vm, fd))
+			return ERR_INVALID_FD;
 
-	case OP_CLO:
-		if (p_vm->sp < 1)
-			return ERR_STACK_UNDERFLOW;
+		p_vm->sp -= 2;
 
-		{
-			word_t fd = p_vm->stack[-- p_vm->sp].u64;
-			if (fd >= MAX_OPEN_FILES || p_vm->files[fd].file == NULL)
-				return ERR_INVALID_FD;
+		size_t ret = fread(&p_vm->memory[addr], 1, size, p_vm->files[fd].file);
+		vm_stack_top(p_vm, 0)->u64 = (word_t)(ret < 1);
+	} break;
 
-			fclose(p_vm->files[fd].file);
-			p_vm->files[fd].file = NULL;
-		}
+	case OP_SZF: STACK_ARGS_COUNT(1); {
+		word_t fd = vm_stack_top(p_vm, 0)->u64;
+		if (!vm_is_fd_valid(p_vm, fd))
+			return ERR_INVALID_FD;
 
-		break;
+		struct file *f = &p_vm->files[fd];
 
-	case OP_WRF:
-		if (p_vm->sp < 2)
-			return ERR_STACK_UNDERFLOW;
-
-		{
-			word_t addr = p_vm->stack[p_vm->sp - 3].u64;
-			word_t size = p_vm->stack[p_vm->sp - 2].u64;
-			word_t fd   = p_vm->stack[p_vm->sp - 1].u64;
-
-			if (addr >= MEMORY_SIZE_BYTES - size + 1)
-				return ERR_INVALID_MEM_ACCESS;
-
-			if (fd >= MAX_OPEN_FILES || p_vm->files[fd].file == NULL)
-				return ERR_INVALID_FD;
-
-			p_vm->sp -= 2;
-
-			size_t count = fwrite(&p_vm->memory[addr], 1, size, p_vm->files[fd].file);
-			p_vm->stack[p_vm->sp - 1].u64 = (word_t)count == size? 1 : 0;
-		}
-
-		break;
-
-	case OP_RDF:
-		if (p_vm->sp < 3)
-			return ERR_STACK_UNDERFLOW;
-
-		{
-			word_t addr = p_vm->stack[p_vm->sp - 3].u64;
-			word_t size = p_vm->stack[p_vm->sp - 2].u64;
-			word_t fd   = p_vm->stack[p_vm->sp - 1].u64;
-
-			if (addr >= MEMORY_SIZE_BYTES - size + 1)
-				return ERR_INVALID_MEM_ACCESS;
-
-			if (fd >= MAX_OPEN_FILES || p_vm->files[fd].file == NULL)
-				return ERR_INVALID_FD;
-
-			p_vm->sp -= 2;
-
-			size_t count = fread(&p_vm->memory[addr], 1, size, p_vm->files[fd].file);
-			p_vm->stack[p_vm->sp - 1].u64 = (word_t)count == size? 1 : 0;
-		}
-
-		break;
-
-	case OP_SZF:
-		if (p_vm->sp < 1)
-			return ERR_STACK_UNDERFLOW;
-
-		{
-			word_t fd = p_vm->stack[p_vm->sp - 1].u64;
-			if (fd >= MAX_OPEN_FILES || p_vm->files[fd].file == NULL)
-				return ERR_INVALID_FD;
-
-			fseek(p_vm->files[fd].file, 0, SEEK_END);
-			p_vm->stack[p_vm->sp - 1].u64 = ftell(p_vm->files[fd].file);
-			fseek(p_vm->files[fd].file, 0, SEEK_SET);
-		}
-
-		break;
+		fseek(f->file, 0, SEEK_END);
+		vm_stack_top(p_vm, 0)->u64 = ftell(f->file);
+		fseek(f->file, 0, SEEK_SET);
+	} break;
 
 	case OP_DMP:
 		putchar('\n');
@@ -1106,26 +896,17 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 
 		break;
 
-	case OP_PRT:
-		if (p_vm->sp < 1)
-			return ERR_STACK_UNDERFLOW;
-
+	case OP_PRT: STACK_ARGS_COUNT(1);
 		printf("%i\n", (int)p_vm->stack[-- p_vm->sp].i64);
 
 		break;
 
-	case OP_FPR:
-		if (p_vm->sp < 1)
-			return ERR_STACK_UNDERFLOW;
-
+	case OP_FPR: STACK_ARGS_COUNT(1);
 		printf("%f\n", (float)p_vm->stack[-- p_vm->sp].f64);
 
 		break;
 
-	case OP_HLT:
-		if (p_vm->sp < 1)
-			return ERR_STACK_UNDERFLOW;
-
+	case OP_HLT: STACK_ARGS_COUNT(1);
 		p_vm->ex   = p_vm->stack[-- p_vm->sp].u64;
 		p_vm->halt = true;
 

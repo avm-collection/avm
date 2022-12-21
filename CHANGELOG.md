@@ -31,3 +31,4 @@
 - `1.9.5`:  Add file IO instructions
 - `1.10.5`: Improve file IO (better reading, writing, file size instruction,
             stdout, stderr, stdin...)
+- `1.10.6`: Fix missing instruction error checks, clean up code
