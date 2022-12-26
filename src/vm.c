@@ -34,6 +34,9 @@ const char *op_to_str[] = {
 	[OP_CAL] = "CAL",
 	[OP_RET] = "RET",
 
+	[OP_AND] = "AND",
+	[OP_ORR] = "ORR",
+
 	[OP_EQU] = "EQU",
 	[OP_NEQ] = "NEQ",
 	[OP_GRT] = "GRT",
@@ -75,6 +78,11 @@ const char *op_to_str[] = {
 	[OP_CLO] = "CLO",
 	[OP_WRF] = "WRF",
 	[OP_RDF] = "RDF",
+
+	[OP_BAN] = "BAN",
+	[OP_BOR] = "BOR",
+	[OP_BSR] = "BSR",
+	[OP_BSL] = "BSL",
 
 	[OP_DMP] = "DMP",
 	[OP_PRT] = "PRT",
@@ -664,6 +672,18 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 
 		break;
 
+	case OP_AND: STACK_ARGS_COUNT(2);
+		vm_stack_top(p_vm, 1)->u64 = vm_stack_top(p_vm, 1)->u64 && vm_stack_top(p_vm, 0)->u64;
+		-- p_vm->sp;
+
+		break;
+
+	case OP_ORR: STACK_ARGS_COUNT(2);
+		vm_stack_top(p_vm, 1)->u64 = vm_stack_top(p_vm, 1)->u64 || vm_stack_top(p_vm, 0)->u64;
+		-- p_vm->sp;
+
+		break;
+
 	case OP_DUP: STACK_ARGS_COUNT(inst->data.u64 + 1);
 		if (p_vm->sp >= STACK_CAPACITY)
 			return ERR_STACK_OVERFLOW;
@@ -888,6 +908,30 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		vm_stack_top(p_vm, 0)->u64 = ftell(f->file);
 		fseek(f->file, 0, SEEK_SET);
 	} break;
+
+	case OP_BAN: STACK_ARGS_COUNT(2);
+		vm_stack_top(p_vm, 1)->u64 &= vm_stack_top(p_vm, 0)->u64;
+		-- p_vm->sp;
+
+		break;
+
+	case OP_BOR: STACK_ARGS_COUNT(2);
+		vm_stack_top(p_vm, 1)->u64 |= vm_stack_top(p_vm, 0)->u64;
+		-- p_vm->sp;
+
+		break;
+
+	case OP_BSR: STACK_ARGS_COUNT(2);
+		vm_stack_top(p_vm, 1)->u64 >>= vm_stack_top(p_vm, 0)->u64;
+		-- p_vm->sp;
+
+		break;
+
+	case OP_BSL: STACK_ARGS_COUNT(2);
+		vm_stack_top(p_vm, 1)->u64 <<= vm_stack_top(p_vm, 0)->u64;
+		-- p_vm->sp;
+
+		break;
 
 	case OP_DMP:
 		putchar('\n');

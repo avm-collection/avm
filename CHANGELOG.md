@@ -33,3 +33,4 @@
             stdout, stderr, stdin...)
 - `1.10.6`: Fix missing instruction error checks, clean up code
 - `1.10.7`: Fix a bug with memory writing instructions
+- `1.11.7`: Add bit operations, and, orr

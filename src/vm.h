@@ -99,6 +99,9 @@ enum opcode {
 	OP_CAL = 0x38,
 	OP_RET = 0x39,
 
+	OP_AND = 0x46,
+	OP_ORR = 0x47,
+
 	/* Signed comparisons */
 	OP_EQU = 0x32,
 	OP_NEQ = 0x33,
@@ -147,6 +150,12 @@ enum opcode {
 	OP_WRF = 0x72,
 	OP_RDF = 0x73,
 	OP_SZF = 0x74,
+
+	/* Bit arithmetic */
+	OP_BAN = 0x80,
+	OP_BOR = 0x81,
+	OP_BSR = 0x82,
+	OP_BSL = 0x83,
 
 	/* Debug */
 	OP_DMP = 0xF0,
