@@ -770,8 +770,8 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 	} break;
 
 	case OP_W16: STACK_ARGS_COUNT(2); {
-		word_t  addr = vm_stack_top(p_vm, 1)->u64;
-		uint8_t data = vm_stack_top(p_vm, 0)->u64;
+		word_t   addr = vm_stack_top(p_vm, 1)->u64;
+		uint16_t data = vm_stack_top(p_vm, 0)->u64;
 
 		enum err ret = vm_write16(p_vm, data, addr);
 		if (ret != ERR_OK)
@@ -781,8 +781,8 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 	} break;
 
 	case OP_W32: STACK_ARGS_COUNT(2); {
-		word_t  addr = vm_stack_top(p_vm, 1)->u64;
-		uint8_t data = vm_stack_top(p_vm, 0)->u64;
+		word_t   addr = vm_stack_top(p_vm, 1)->u64;
+		uint32_t data = vm_stack_top(p_vm, 0)->u64;
 
 		enum err ret = vm_write32(p_vm, data, addr);
 		if (ret != ERR_OK)
@@ -792,8 +792,8 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 	} break;
 
 	case OP_W64: STACK_ARGS_COUNT(2); {
-		word_t  addr = vm_stack_top(p_vm, 1)->u64;
-		uint8_t data = vm_stack_top(p_vm, 0)->u64;
+		word_t   addr = vm_stack_top(p_vm, 1)->u64;
+		uint64_t data = vm_stack_top(p_vm, 0)->u64;
 
 		enum err ret = vm_write64(p_vm, data, addr);
 		if (ret != ERR_OK)
