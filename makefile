@@ -11,7 +11,7 @@ CSTD   = c11
 CFLAGS = -Og -std=$(CSTD) -Wall -Wextra -Werror -pedantic -Wno-deprecated-declarations
 
 ifneq ($(OS),Windows_NT)
-	LIBS = -lreadline
+	LIBS = -lreadline -ldl
 endif
 
 shared: $(BIN) $(OBJ) $(SRC)

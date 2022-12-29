@@ -9,6 +9,7 @@
 #include <stdlib.h>  /* exit, malloc, free, EXIT_FAILURE */
 #include <errno.h>   /* strerror, errno */
 #include <assert.h>  /* static_assert, assert */
+#include <dlfcn.h>   /* dlopen, dlclose, dlsym */
 
 #include "config.h"
 
@@ -39,9 +40,11 @@
 
 #define MEMORY_SIZE_BYTES 0x100000
 
-#define MAX_OPEN_FILES 0x100
+#define MAX_OPEN_FILES   0x100
+#define MAX_OPEN_LIBS    0x80
+#define MAX_LOADED_FUNCS 0x80
 
-#define INVALID_FD (word_t)-1
+#define INVALID_DESCRIPTOR (word_t)-1
 
 #define FMT_HEX         "016llX"
 #define AS_FMT_HEX(P_X) (long long unsigned)(P_X)
@@ -157,6 +160,13 @@ enum opcode {
 	OP_BSR = 0x82,
 	OP_BSL = 0x83,
 
+	/* Shared library */
+	OP_LOL = 0x90,
+	OP_CLL = 0x91,
+	OP_LLF = 0x92,
+	OP_ULF = 0x93,
+	OP_CLF = 0x94,
+
 	/* Debug */
 	OP_DMP = 0xF0,
 	OP_PRT = 0xF1,
@@ -177,7 +187,9 @@ enum err {
 	ERR_DIV_BY_ZERO          = 0x08,
 	ERR_MAX_FILES_OPEN       = 0x09,
 	ERR_INVALID_FMODE        = 0x0a,
-	ERR_INVALID_FD           = 0x0b,
+	ERR_INVALID_DESCRIPTOR   = 0x0b,
+	ERR_MAX_LIBS_OPEN        = 0x0d,
+	ERR_MAX_FUNCS_LOADED     = 0x0e,
 };
 
 const char *err_str(enum err p_err);
@@ -196,10 +208,23 @@ struct file {
 	enum fmode mode;
 };
 
+struct vm;
+typedef enum err (*external_t)(struct vm*);
+
+struct lib {
+	void      *handle;
+	external_t funcs[MAX_LOADED_FUNCS];
+};
+
 PACK(struct inst {
 	enum opcode op: 8;
 	value_t     data;
 });
+
+struct maps {
+	struct file files[MAX_OPEN_FILES];
+	struct lib  libs[MAX_OPEN_LIBS];
+};
 
 struct vm {
 	value_t *stack;
@@ -207,7 +232,7 @@ struct vm {
 	uint8_t *memory;
 	word_t   ip, sp, cs, ex; /* Registers */
 
-	struct file *files;
+	struct maps *maps;
 
 	struct inst *program;
 	word_t       program_size;
@@ -253,6 +278,10 @@ enum err vm_write32(struct vm *p_vm, uint32_t p_data, word_t p_addr);
 enum err vm_write64(struct vm *p_vm, uint64_t p_data, word_t p_addr);
 
 word_t vm_get_free_fd(struct vm *p_vm);
+word_t vm_get_free_ld(struct vm *p_vm);
+word_t vm_get_free_fnd(struct vm *p_vm, word_t p_ld);
+
+bool vm_get_str(struct vm *p_vm, char *p_buf, word_t p_addr, word_t p_size);
 
 void vm_debug(struct vm *p_vm);
 void vm_run(struct vm *p_vm);
@@ -261,7 +290,15 @@ void vm_exec_from_mem(struct vm *p_vm, struct inst *p_program, word_t p_program_
 void vm_exec_from_file(struct vm *p_vm, const char *p_path);
 
 inline bool vm_is_fd_valid(struct vm *p_vm, word_t p_fd) {
-	return p_fd < MAX_OPEN_FILES && p_vm->files[p_fd].file != NULL;
+	return p_fd < MAX_OPEN_FILES && p_vm->maps->files[p_fd].file != NULL;
+}
+
+inline bool vm_is_ld_valid(struct vm *p_vm, word_t p_ld) {
+	return p_ld < MAX_OPEN_LIBS && p_vm->maps->libs[p_ld].handle != NULL;
+}
+
+inline bool vm_is_fnd_valid(struct vm *p_vm, word_t p_ld, word_t p_fnd) {
+	return p_fnd < MAX_LOADED_FUNCS && p_vm->maps->libs[p_ld].funcs[p_fnd] != NULL;
 }
 
 inline bool vm_is_chunk_valid(struct vm *p_vm, word_t p_addr, word_t p_size) {

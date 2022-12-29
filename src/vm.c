@@ -84,6 +84,12 @@ const char *op_to_str[] = {
 	[OP_BSR] = "BSR",
 	[OP_BSL] = "BSL",
 
+	[OP_LOL] = "LOL",
+	[OP_CLL] = "CLL",
+	[OP_LLF] = "LLF",
+	[OP_ULF] = "ULF",
+	[OP_CLF] = "CLF",
+
 	[OP_DMP] = "DMP",
 	[OP_PRT] = "PRT",
 	[OP_FPR] = "FPR",
@@ -103,7 +109,9 @@ const char *err_to_str[] = {
 	[ERR_DIV_BY_ZERO]          = "Division by zero",
 	[ERR_MAX_FILES_OPEN]       = "Reached max limit of files open",
 	[ERR_INVALID_FMODE]        = "Invalid file mode",
-	[ERR_INVALID_FD]           = "Invalid file descriptor",
+	[ERR_INVALID_DESCRIPTOR]   = "Invalid descriptor",
+	[ERR_MAX_LIBS_OPEN]        = "Reached max limit of libraries open",
+	[ERR_MAX_FUNCS_LOADED]     = "Reached max limit of functions loaded",
 };
 
 #define FMODE_STR_SIZE 4
@@ -170,28 +178,28 @@ void vm_init(struct vm *p_vm, bool p_warnings, bool p_debug) {
 		exit(EXIT_FAILURE);
 	}
 
-	p_vm->files = (struct file*)malloc(MAX_OPEN_FILES * sizeof(struct file));
-	if (p_vm->files == NULL) {
+	p_vm->maps = (struct maps*)malloc(sizeof(*p_vm->maps));
+	if (p_vm->maps == NULL) {
 		VM_ERROR(stderr, "malloc() fail near "__FILE__":%i", __LINE__);
 		exit(EXIT_FAILURE);
 	}
-	memset(p_vm->files, 0, MAX_OPEN_FILES * sizeof(struct file));
+	memset(p_vm->maps, 0, sizeof(*p_vm->maps));
 
-	p_vm->files[0].file = stdin;
-	p_vm->files[0].mode = FMODE_READ;
+	p_vm->maps->files[0].file = stdin;
+	p_vm->maps->files[0].mode = FMODE_READ;
 
-	p_vm->files[1].file = stdout;
-	p_vm->files[1].mode = FMODE_WRITE;
+	p_vm->maps->files[1].file = stdout;
+	p_vm->maps->files[1].mode = FMODE_WRITE;
 
-	p_vm->files[2].file = stderr;
-	p_vm->files[2].mode = FMODE_WRITE;
+	p_vm->maps->files[2].file = stderr;
+	p_vm->maps->files[2].mode = FMODE_WRITE;
 }
 
 void vm_destroy(struct vm *p_vm) {
 	free(p_vm->stack);
 	free(p_vm->call_stack);
 	free(p_vm->memory);
-	free(p_vm->files);
+	free(p_vm->maps);
 }
 
 void vm_dump(struct vm *p_vm, FILE *p_file) {
@@ -408,11 +416,29 @@ enum err vm_write64(struct vm *p_vm, uint64_t p_data, word_t p_addr) {
 
 word_t vm_get_free_fd(struct vm *p_vm) {
 	for (word_t i = 0; i < MAX_OPEN_FILES; ++ i) {
-		if (p_vm->files[i].file == NULL)
+		if (p_vm->maps->files[i].file == NULL)
 			return i;
 	}
 
-	return INVALID_FD;
+	return INVALID_DESCRIPTOR;
+}
+
+word_t vm_get_free_ld(struct vm *p_vm) {
+	for (word_t i = 0; i < MAX_OPEN_LIBS; ++ i) {
+		if (p_vm->maps->libs[i].handle == NULL)
+			return i;
+	}
+
+	return INVALID_DESCRIPTOR;
+}
+
+word_t vm_get_free_fnd(struct vm *p_vm, word_t p_ld) {
+	for (word_t i = 0; i < MAX_LOADED_FUNCS; ++ i) {
+		if (p_vm->maps->libs[p_ld].funcs[i] == NULL)
+			return i;
+	}
+
+	return INVALID_DESCRIPTOR;
 }
 
 #define STACK_ARGS_COUNT(P_COUNT) \
@@ -827,20 +853,16 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		word_t     size = vm_stack_top(p_vm, 1)->u64;
 		enum fmode mode = vm_stack_top(p_vm, 0)->u64;
 
-		if (!vm_is_chunk_valid(p_vm, addr, size))
-			return ERR_INVALID_MEM_ACCESS;
-
 		char name[size + 1];
-		strncpy(name, (char*)&p_vm->memory[addr], size);
-		name[size] = 0;
+		vm_get_str(p_vm, name, addr, size);
 
 		p_vm->sp -= 2;
 
 		word_t fd = vm_get_free_fd(p_vm);
-		if (fd == INVALID_FD)
+		if (fd == INVALID_DESCRIPTOR)
 			return ERR_MAX_FILES_OPEN;
 
-		struct file *f = &p_vm->files[fd];
+		struct file *f = &p_vm->maps->files[fd];
 
 		char *mode_str = fmode_to_str(mode);
 		if (mode_str == NULL)
@@ -848,8 +870,7 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 
 		f->mode = mode;
 		f->file = fopen(name, mode_str);
-
-		vm_stack_top(p_vm, 0)->u64 = f->file == NULL? INVALID_FD : fd;
+		vm_stack_top(p_vm, 0)->u64 = f->file == NULL? INVALID_DESCRIPTOR : fd;
 
 		free(mode_str);
 	} break;
@@ -857,9 +878,9 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 	case OP_CLO: STACK_ARGS_COUNT(1); {
 		word_t fd = p_vm->stack[-- p_vm->sp].u64;
 		if (!vm_is_fd_valid(p_vm, fd))
-			return ERR_INVALID_FD;
+			return ERR_INVALID_DESCRIPTOR;
 
-		struct file *f = &p_vm->files[fd];
+		struct file *f = &p_vm->maps->files[fd];
 
 		fclose(f->file);
 		f->file = NULL;
@@ -873,11 +894,11 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		if (!vm_is_chunk_valid(p_vm, addr, size))
 			return ERR_INVALID_MEM_ACCESS;
 		else if (!vm_is_fd_valid(p_vm, fd))
-			return ERR_INVALID_FD;
+			return ERR_INVALID_DESCRIPTOR;
 
 		p_vm->sp -= 2;
 
-		size_t ret = fwrite(&p_vm->memory[addr], 1, size, p_vm->files[fd].file);
+		size_t ret = fwrite(&p_vm->memory[addr], 1, size, p_vm->maps->files[fd].file);
 		vm_stack_top(p_vm, 0)->u64 = (word_t)(ret < 1);
 	} break;
 
@@ -889,20 +910,20 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		if (!vm_is_chunk_valid(p_vm, addr, size))
 			return ERR_INVALID_MEM_ACCESS;
 		else if (!vm_is_fd_valid(p_vm, fd))
-			return ERR_INVALID_FD;
+			return ERR_INVALID_DESCRIPTOR;
 
 		p_vm->sp -= 2;
 
-		size_t ret = fread(&p_vm->memory[addr], 1, size, p_vm->files[fd].file);
+		size_t ret = fread(&p_vm->memory[addr], 1, size, p_vm->maps->files[fd].file);
 		vm_stack_top(p_vm, 0)->u64 = (word_t)(ret < 1);
 	} break;
 
 	case OP_SZF: STACK_ARGS_COUNT(1); {
 		word_t fd = vm_stack_top(p_vm, 0)->u64;
 		if (!vm_is_fd_valid(p_vm, fd))
-			return ERR_INVALID_FD;
+			return ERR_INVALID_DESCRIPTOR;
 
-		struct file *f = &p_vm->files[fd];
+		struct file *f = &p_vm->maps->files[fd];
 
 		fseek(f->file, 0, SEEK_END);
 		vm_stack_top(p_vm, 0)->u64 = ftell(f->file);
@@ -932,6 +953,86 @@ static int vm_exec_next_inst(struct vm *p_vm) {
 		-- p_vm->sp;
 
 		break;
+
+	case OP_LOL: STACK_ARGS_COUNT(2); {
+		word_t addr = vm_stack_top(p_vm, 1)->u64;
+		word_t size = vm_stack_top(p_vm, 0)->u64;
+
+		char name[size + 1];
+		vm_get_str(p_vm, name, addr, size);
+
+		-- p_vm->sp;
+
+		word_t ld = vm_get_free_ld(p_vm);
+		if (ld == INVALID_DESCRIPTOR)
+			return ERR_MAX_FILES_OPEN;
+
+		struct lib *lib = &p_vm->maps->libs[ld];
+
+		lib->handle = dlopen(name, RTLD_NOW | RTLD_GLOBAL);
+		vm_stack_top(p_vm, 0)->u64 = lib->handle == NULL? INVALID_DESCRIPTOR : ld;
+	} break;
+
+	case OP_CLL: STACK_ARGS_COUNT(1); {
+		word_t ld = p_vm->stack[-- p_vm->sp].u64;
+		if (!vm_is_ld_valid(p_vm, ld))
+			return ERR_INVALID_DESCRIPTOR;
+
+		struct lib *lib = &p_vm->maps->libs[ld];
+
+		dlclose(lib->handle);
+		lib->handle = NULL;
+		memset(lib->funcs, 0, sizeof(lib->funcs));
+	} break;
+
+	case OP_LLF: STACK_ARGS_COUNT(3); {
+		word_t addr = vm_stack_top(p_vm, 2)->u64;
+		word_t size = vm_stack_top(p_vm, 1)->u64;
+		word_t ld   = vm_stack_top(p_vm, 0)->u64;
+
+		if (!vm_is_chunk_valid(p_vm, addr, size))
+			return ERR_INVALID_MEM_ACCESS;
+
+		char name[size + 1];
+		strncpy(name, (char*)&p_vm->memory[addr], size);
+		name[size] = 0;
+
+		p_vm->sp -= 2;
+
+		word_t fnd = vm_get_free_fnd(p_vm, ld);
+		if (fnd == INVALID_DESCRIPTOR)
+			return ERR_MAX_FUNCS_LOADED;
+
+		external_t *func = &p_vm->maps->libs[ld].funcs[fnd];
+
+		*(void**)func = dlsym(p_vm->maps->libs[ld].handle, name);
+		vm_stack_top(p_vm, 0)->u64 = *func == NULL? INVALID_DESCRIPTOR : fnd;
+	} break;
+
+	case OP_ULF: STACK_ARGS_COUNT(2); {
+		word_t fnd = vm_stack_top(p_vm, 1)->u64;
+		word_t ld  = vm_stack_top(p_vm, 0)->u64;
+		if (!vm_is_ld_valid(p_vm, ld) || !vm_is_fnd_valid(p_vm, ld, fnd))
+			return ERR_INVALID_DESCRIPTOR;
+
+		p_vm->maps->libs[ld].funcs[fnd] = NULL;
+
+		p_vm->sp -= 2;
+	} break;
+
+	case OP_CLF: STACK_ARGS_COUNT(2); {
+		word_t fnd = vm_stack_top(p_vm, 1)->u64;
+		word_t ld  = vm_stack_top(p_vm, 0)->u64;
+
+		if (!vm_is_ld_valid(p_vm, ld) || !vm_is_fnd_valid(p_vm, ld, fnd))
+			return ERR_INVALID_DESCRIPTOR;
+
+		p_vm->sp -= 2;
+
+		enum err ret = p_vm->maps->libs[ld].funcs[fnd](p_vm);
+		if (ret != ERR_OK)
+			return ret;
+	} break;
 
 	case OP_DMP:
 		putchar('\n');
@@ -973,6 +1074,16 @@ static void dump_inst(FILE *p_file, struct inst *p_inst) {
 	VM_NOTE(p_file, "0x%"FMT_HEX" (%s): 0x%"FMT_HEX" (%f | %lli)", AS_FMT_HEX(p_inst->op),
 	        op_to_str[p_inst->op], AS_FMT_HEX(p_inst->data.i64),
 	        p_inst->data.f64, (long long)p_inst->data.i64);
+}
+
+bool vm_get_str(struct vm *p_vm, char *p_buf, word_t p_addr, word_t p_size) {
+	if (!vm_is_chunk_valid(p_vm, p_addr, p_size))
+		return false;
+
+	strncpy(p_buf, (char*)&p_vm->memory[p_addr], p_size);
+	p_buf[p_size] = 0;
+
+	return true;
 }
 
 void vm_debug(struct vm *p_vm) {
