@@ -1,10 +1,12 @@
-SRC  = $(wildcard src/*.c)
-DEPS = $(wildcard src/*.h)
-OBJ  = $(addsuffix .o,$(subst src/,bin/,$(basename $(SRC))))
-
 BIN     = ./bin
 OUT     = $(BIN)/app
 INSTALL = /usr/bin/avm
+
+SRC  = $(wildcard src/*.c) $(wildcard src/**/*.c)
+DEPS = $(wildcard src/*.h) $(wildcard src/**/*.h)
+OBJ  = $(addsuffix .o,$(subst src/,$(BIN)/,$(basename $(SRC))))
+
+BIN_DIRS = $(subst src/,$(BIN)/,$(sort $(dir $(wildcard src/*/))))
 
 CC     = gcc
 CSTD   = c11
@@ -14,17 +16,20 @@ ifneq ($(OS),Windows_NT)
 	LIBS = -lreadline -ldl
 endif
 
-shared: $(BIN) $(OBJ) $(SRC)
+shared: $(BIN_DIRS) $(BIN) $(OBJ) $(SRC)
 	$(CC) $(CFLAGS) -o $(OUT) $(OBJ) $(LIBS)
 
-static: $(BIN) $(OBJ) $(SRC)
+static: $(BIN_DIRS) $(BIN) $(OBJ) $(SRC)
 	$(CC) -static $(CFLAGS) -o $(OUT) $(OBJ) $(LIBS)
 
-bin/%.o: src/%.c $(DEPS)
+$(BIN)/%/:
+	mkdir -p $@
+
+$(BIN)/%.o: src/%.c $(DEPS)
 	$(CC) -c $< $(CFLAGS) -o $@
 
 $(BIN):
-	mkdir -p bin
+	mkdir -p $(BIN)
 
 install:
 	cp $(OUT) $(INSTALL)

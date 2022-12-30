@@ -15,7 +15,7 @@
 	</a>
 </p>
 
-A simple unfinished stack based virtual machine written in C.
+A simple stack based virtual machine written in C.
 
 ## Table of contents
 * [Write a program](#write-a-program)
@@ -26,7 +26,8 @@ A simple unfinished stack based virtual machine written in C.
 * [Make](#make)
 
 ## Write a program
-For writing a program for AVM, use the AVM assembler called [ANASM](https://github.com/avm-collection/anasm)
+To write a program for AVM, use the AVM assembler [ANASM](https://github.com/avm-collection/anasm).
+There is also a statically typed compiled language being written for it, but it is not released yet.
 
 ## Quickstart
 ```sh
@@ -41,7 +42,7 @@ $ avm PROGRAM
 - [X] Conditional instructions, jumps
 - [X] RAM
 - [X] File reading, IO
-- [ ] Loading shared libraries
+- [X] Loading shared libraries
 
 ## Documentation
 Hosted [here](https://avm-collection.github.io/avm/documentation)

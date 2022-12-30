@@ -93,8 +93,8 @@ int main(int p_argc, char **p_argv) {
 	}
 
 	struct vm vm;
-	vm_init(&vm, warnings, debug);
-	vm_exec_from_file(&vm, path);
+	vm_init(&vm);
+	vm_exec_from_file(&vm, path, warnings, debug);
 	vm_destroy(&vm);
 
 	return vm.ex;

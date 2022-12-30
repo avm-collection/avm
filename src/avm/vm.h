@@ -12,15 +12,7 @@
 #include <dlfcn.h>   /* dlopen, dlclose, dlsym */
 
 #include "config.h"
-
-#ifdef USES_READLINE
-#	include <readline/readline.h> /* readline, rl_set_signals */
-#	include <readline/history.h>  /* add_history, using_history */
-
-#	define RL_ESC_SEQ(P_SEQ) "\001"P_SEQ"\002"
-#	define PROMPT RL_ESC_SEQ("\x1b[94m")"(help) "RL_ESC_SEQ("\x1b[95m")"> "RL_ESC_SEQ("\x1b[0m")
-#endif
-
+#include "platform.h"
 #include "utils.h"
 #include "color.h"
 
@@ -245,7 +237,7 @@ struct vm {
 	struct inst *program;
 	word_t       program_size;
 
-	bool halt, warnings, debug;
+	bool halt;
 };
 
 PACK(struct file_meta {
@@ -256,8 +248,12 @@ PACK(struct file_meta {
 	uint8_t entry_point[sizeof(word_t)];
 });
 
-void vm_init(struct vm *p_vm, bool p_warnings, bool p_debug);
+void vm_init(struct vm *p_vm);
 void vm_destroy(struct vm *p_vm);
+
+int  vm_exec_next_inst(struct vm *p_vm);
+void vm_load_from_mem(struct vm *p_vm, struct inst *p_program, word_t p_size, word_t p_ep);
+void vm_run(struct vm *p_vm);
 
 void vm_dump(struct vm *p_vm, FILE *p_file);
 void vm_dump_regs(struct vm *p_vm, FILE *p_file);
@@ -290,12 +286,6 @@ word_t vm_get_free_ld(struct vm *p_vm);
 word_t vm_get_free_fnd(struct vm *p_vm, word_t p_ld);
 
 bool vm_get_str(struct vm *p_vm, char *p_buf, word_t p_addr, word_t p_size);
-
-void vm_debug(struct vm *p_vm);
-void vm_run(struct vm *p_vm);
-
-void vm_exec_from_mem(struct vm *p_vm, struct inst *p_program, word_t p_program_size, word_t p_ep);
-void vm_exec_from_file(struct vm *p_vm, const char *p_path);
 
 bool vm_is_fd_valid(struct vm *p_vm, word_t p_fd);
 bool vm_is_ld_valid(struct vm *p_vm, word_t p_ld);
