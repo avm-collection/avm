@@ -78,6 +78,7 @@ const char *op_to_str[] = {
 	[OP_CLO] = "CLO",
 	[OP_WRF] = "WRF",
 	[OP_RDF] = "RDF",
+	[OP_FLU] = "FLU",
 
 	[OP_BAN] = "BAN",
 	[OP_BOR] = "BOR",
