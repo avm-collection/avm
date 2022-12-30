@@ -24,12 +24,20 @@
 #include "utils.h"
 #include "color.h"
 
-#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
-#	define PACK(p_struct) p_struct __attribute__((__packed__))
-#elif defined(COMPILER_MSVC)
-#	define PACK(p_struct) __pragma(pack(push, 1)) p_struct __pragma(pack(pop))
+#ifdef PLATFORM_LINUX
+#	define EXPORT
 #else
-#	define PACK(p_struct) p_struct __attribute__((__packed__))
+#	define EXPORT __declspec(dllexport)
+#endif
+
+#define AVM_BINDING(P_NAME, P_VM) enum err avm_##P_NAME(struct vm *P_VM)
+
+#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
+#	define PACK(P_STRUCT) P_STRUCT __attribute__((__packed__))
+#elif defined(COMPILER_MSVC)
+#	define PACK(P_STRUCT) __pragma(pack(push, 1)) P_STRUCT __pragma(pack(pop))
+#else
+#	define PACK(P_STRUCT) P_STRUCT __attribute__((__packed__))
 #endif
 
 #define STACK_SIZE_BYTES 0x10000
@@ -289,26 +297,11 @@ void vm_run(struct vm *p_vm);
 void vm_exec_from_mem(struct vm *p_vm, struct inst *p_program, word_t p_program_size, word_t p_ep);
 void vm_exec_from_file(struct vm *p_vm, const char *p_path);
 
-inline bool vm_is_fd_valid(struct vm *p_vm, word_t p_fd) {
-	return p_fd < MAX_OPEN_FILES && p_vm->maps->files[p_fd].file != NULL;
-}
+bool vm_is_fd_valid(struct vm *p_vm, word_t p_fd);
+bool vm_is_ld_valid(struct vm *p_vm, word_t p_ld);
+bool vm_is_fnd_valid(struct vm *p_vm, word_t p_ld, word_t p_fnd);
+bool vm_is_chunk_valid(struct vm *p_vm, word_t p_addr, word_t p_size);
 
-inline bool vm_is_ld_valid(struct vm *p_vm, word_t p_ld) {
-	return p_ld < MAX_OPEN_LIBS && p_vm->maps->libs[p_ld].handle != NULL;
-}
-
-inline bool vm_is_fnd_valid(struct vm *p_vm, word_t p_ld, word_t p_fnd) {
-	return p_fnd < MAX_LOADED_FUNCS && p_vm->maps->libs[p_ld].funcs[p_fnd] != NULL;
-}
-
-inline bool vm_is_chunk_valid(struct vm *p_vm, word_t p_addr, word_t p_size) {
-	UNUSED(p_vm);
-
-	return p_addr < MEMORY_SIZE_BYTES - p_size + 1;
-}
-
-inline value_t *vm_stack_top(struct vm *p_vm, word_t p_off) {
-	return &p_vm->stack[p_vm->sp - p_off - 1];
-}
+value_t *vm_stack_top(struct vm *p_vm, word_t p_off);
 
 #endif

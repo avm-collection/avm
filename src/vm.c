@@ -1278,3 +1278,25 @@ void vm_exec_from_file(struct vm *p_vm, const char *p_path) {
 
 	free(program);
 }
+
+bool vm_is_fd_valid(struct vm *p_vm, word_t p_fd) {
+	return p_fd < MAX_OPEN_FILES && p_vm->maps->files[p_fd].file != NULL;
+}
+
+bool vm_is_ld_valid(struct vm *p_vm, word_t p_ld) {
+	return p_ld < MAX_OPEN_LIBS && p_vm->maps->libs[p_ld].handle != NULL;
+}
+
+bool vm_is_fnd_valid(struct vm *p_vm, word_t p_ld, word_t p_fnd) {
+	return p_fnd < MAX_LOADED_FUNCS && p_vm->maps->libs[p_ld].funcs[p_fnd] != NULL;
+}
+
+bool vm_is_chunk_valid(struct vm *p_vm, word_t p_addr, word_t p_size) {
+	UNUSED(p_vm);
+
+	return p_addr < MEMORY_SIZE_BYTES - p_size + 1;
+}
+
+value_t *vm_stack_top(struct vm *p_vm, word_t p_off) {
+	return &p_vm->stack[p_vm->sp - p_off - 1];
+}
