@@ -1,6 +1,9 @@
 #ifndef DEBUGGER_H__HEADER_GUARD__
 #define DEBUGGER_H__HEADER_GUARD__
 
+#include <string.h>  /* strcmp, strlen */
+#include <stdlib.h>  /* free */
+
 #include "avm/vm.h"
 
 #ifdef PLATFORM_LINUX

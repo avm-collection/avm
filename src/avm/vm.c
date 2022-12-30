@@ -592,6 +592,14 @@ int vm_exec_next_inst(struct vm *p_vm) {
 		fseek(f->file, 0, SEEK_SET);
 	} break;
 
+	case OP_FLU: STACK_ARGS_COUNT(1); {
+		word_t fd = p_vm->stack[-- p_vm->sp].u64;
+		if (!vm_is_fd_valid(p_vm, fd))
+			return ERR_INVALID_DESCRIPTOR;
+
+		fflush(p_vm->maps->files[fd].file);
+	} break;
+
 	case OP_BAN: STACK_ARGS_COUNT(2);
 		vm_stack_top(p_vm, 1)->u64 &= vm_stack_top(p_vm, 0)->u64;
 		-- p_vm->sp;

@@ -4,11 +4,10 @@
 #include <stdint.h>  /* uint64_t, uint8_t */
 #include <string.h>  /* memset, memcpy, strncmp, strcmp, strlen */
 #include <stdio.h>   /* stderr, fputs, fputc, putchar, fprintf, FILE, fflush,
-                        fopen, fclose, fread, fgetc, ftell, fseek */
+                        fopen, fclose, fread, ftell, fseek */
 #include <stdbool.h> /* bool, true, false */
 #include <stdlib.h>  /* exit, malloc, free, EXIT_FAILURE */
-#include <errno.h>   /* strerror, errno */
-#include <assert.h>  /* static_assert, assert */
+#include <assert.h>  /* static_assert */
 #include <dlfcn.h>   /* dlopen, dlclose, dlsym */
 
 #include "config.h"
@@ -153,6 +152,7 @@ enum opcode {
 	OP_WRF = 0x72,
 	OP_RDF = 0x73,
 	OP_SZF = 0x74,
+	OP_FLU = 0x75,
 
 	/* Bit arithmetic */
 	OP_BAN = 0x80,
