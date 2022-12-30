@@ -36,3 +36,4 @@
 - `1.11.7`: Add bit operations, and, orr
 - `1.12.7`: Loading shared libraries
 - `1.13.7`: Add a file flush instruction
+- `1.13.8`: Add a string representation of SZF and FLU
