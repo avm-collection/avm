@@ -28,8 +28,8 @@ $(BIN)/%/:
 $(BIN)/%.o: src/%.c $(DEPS)
 	$(CC) -c $< $(CFLAGS) -o $@
 
-$(BIN):
-	mkdir -p $(BIN)
+$(BIN)/:
+	mkdir -p $(BIN)/
 
 install:
 	cp $(OUT) $(INSTALL)
