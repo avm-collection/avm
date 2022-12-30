@@ -35,3 +35,4 @@
 - `1.10.7`: Fix a bug with memory writing instructions
 - `1.11.7`: Add bit operations, and, orr
 - `1.12.7`: Loading shared libraries
+- `1.13.7`: Add a file flush instruction
