@@ -43,6 +43,7 @@ $ avm PROGRAM
 - [X] RAM
 - [X] File reading, IO
 - [X] Loading shared libraries
+- [ ] Windows support
 
 ## Documentation
 Hosted [here](https://avm-collection.github.io/avm/documentation)
