@@ -37,8 +37,6 @@
 #define CALL_STACK_SIZE_BYTES 0x1000
 #define CALL_STACK_CAPACITY   (CALL_STACK_SIZE_BYTES / sizeof(word_t))
 
-#define MEMORY_SIZE_BYTES 0x100000
-
 #define MAX_OPEN_FILES   0x100
 #define MAX_OPEN_LIBS    0x80
 #define MAX_LOADED_FUNCS 0x80
@@ -229,8 +227,9 @@ struct maps {
 struct vm {
 	value_t *stack;
 	word_t  *call_stack;
-	uint8_t *memory;
 	word_t   ip, sp, cs, ex; /* Registers */
+	uint8_t *memory;
+	word_t   memory_size;
 
 	struct maps *maps;
 
@@ -249,6 +248,7 @@ PACK(struct file_meta {
 });
 
 void vm_init(struct vm *p_vm);
+void vm_alloc_mem(struct vm *p_vm, word_t p_bytes);
 void vm_destroy(struct vm *p_vm);
 
 int  vm_exec_next_inst(struct vm *p_vm);

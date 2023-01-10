@@ -73,12 +73,6 @@ void vm_init(struct vm *p_vm) {
 		exit(EXIT_FAILURE);
 	}
 
-	p_vm->memory = (uint8_t*)malloc(MEMORY_SIZE_BYTES);
-	if (p_vm->memory == NULL) {
-		VM_ERROR(stderr, "malloc() fail near "__FILE__":%i", __LINE__);
-		exit(EXIT_FAILURE);
-	}
-
 	p_vm->maps = (struct maps*)malloc(sizeof(*p_vm->maps));
 	if (p_vm->maps == NULL) {
 		VM_ERROR(stderr, "malloc() fail near "__FILE__":%i", __LINE__);
@@ -96,11 +90,31 @@ void vm_init(struct vm *p_vm) {
 	p_vm->maps->files[2].mode = FMODE_WRITE;
 }
 
+void vm_alloc_mem(struct vm *p_vm, word_t p_bytes) {
+	p_vm->memory_size = p_bytes;
+
+	if (p_vm->memory == NULL) {
+		p_vm->memory = (uint8_t*)malloc(p_bytes);
+		if (p_vm->memory == NULL) {
+			VM_ERROR(stderr, "malloc() fail near "__FILE__":%i", __LINE__);
+			exit(EXIT_FAILURE);
+		}
+	} else {
+		p_vm->memory = (uint8_t*)realloc(p_vm->memory, p_bytes);
+		if (p_vm->memory == NULL) {
+			VM_ERROR(stderr, "realloc() fail near "__FILE__":%i", __LINE__);
+			exit(EXIT_FAILURE);
+		}
+	}
+}
+
 void vm_destroy(struct vm *p_vm) {
 	free(p_vm->stack);
 	free(p_vm->call_stack);
-	free(p_vm->memory);
 	free(p_vm->maps);
+
+	if (p_vm->memory != NULL)
+		free(p_vm->memory);
 }
 
 #define STACK_ARGS_COUNT(P_COUNT) \
@@ -1011,9 +1025,7 @@ bool vm_is_fnd_valid(struct vm *p_vm, word_t p_ld, word_t p_fnd) {
 }
 
 bool vm_is_chunk_valid(struct vm *p_vm, word_t p_addr, word_t p_size) {
-	UNUSED(p_vm);
-
-	return p_addr < MEMORY_SIZE_BYTES - p_size + 1;
+	return p_addr < p_vm->memory_size - p_size + 1;
 }
 
 value_t *vm_stack_top(struct vm *p_vm, word_t p_off) {

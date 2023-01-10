@@ -51,13 +51,9 @@ void vm_exec_from_file(struct vm *p_vm, const char *p_path, bool p_warnings, boo
 	word_t memory_size  = bytes_to_word(meta.memory_size);
 	word_t entry_point  = bytes_to_word(meta.entry_point);
 
-	for (word_t i = 0; i < memory_size; ++ i) {
-		if (i >= MEMORY_SIZE_BYTES) {
-			VM_ERROR(stderr, "'%s' memory segment is bigger than VM memory (%zu bytes)",
-			         p_path, i + 1);
-			exit(EXIT_FAILURE);
-		}
+	vm_alloc_mem(p_vm, memory_size + 1);
 
+	for (word_t i = 0; i < memory_size; ++ i) {
 		int byte = fgetc(file);
 		if (byte == EOF) {
 			VM_ERROR(stderr, "'%s' unexpected EOF during memory segment", p_path);

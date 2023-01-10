@@ -37,3 +37,4 @@
 - `1.12.7`: Loading shared libraries
 - `1.13.7`: Add a file flush instruction
 - `1.13.8`: Add a string representation of SZF and FLU
+- `1.13.9`: Only allocate as much memory as needed
