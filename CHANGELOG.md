@@ -38,3 +38,4 @@
 - `1.13.7`: Add a file flush instruction
 - `1.13.8`: Add a string representation of SZF and FLU
 - `1.13.9`: Only allocate as much memory as needed
+- `1.14.9`: Start memory from address 0, not 1

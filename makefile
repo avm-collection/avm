@@ -19,9 +19,6 @@ endif
 shared: $(BIN_DIRS) $(BIN) $(OBJ) $(SRC)
 	$(CC) $(CFLAGS) -o $(OUT) $(OBJ) $(LIBS)
 
-static: $(BIN_DIRS) $(BIN) $(OBJ) $(SRC)
-	$(CC) -static $(CFLAGS) -o $(OUT) $(OBJ) $(LIBS)
-
 $(BIN)/%/:
 	mkdir -p $@
 

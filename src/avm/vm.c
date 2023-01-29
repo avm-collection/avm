@@ -168,7 +168,11 @@ int vm_exec_next_inst(struct vm *p_vm) {
 	} break;
 
 	case OP_MOD: STACK_ARGS_COUNT(2);
-		vm_stack_top(p_vm, 1)->u64 %= vm_stack_top(p_vm, 0)->u64;
+		word_t b = vm_stack_top(p_vm, 0)->u64;
+		if (b == 0)
+			return ERR_DIV_BY_ZERO;
+
+		vm_stack_top(p_vm, 1)->u64 %= b;
 		-- p_vm->sp;
 
 		break;

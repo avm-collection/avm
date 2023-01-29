@@ -51,7 +51,7 @@ void vm_exec_from_file(struct vm *p_vm, const char *p_path, bool p_warnings, boo
 	word_t memory_size  = bytes_to_word(meta.memory_size);
 	word_t entry_point  = bytes_to_word(meta.entry_point);
 
-	vm_alloc_mem(p_vm, memory_size + 1);
+	vm_alloc_mem(p_vm, memory_size);
 
 	for (word_t i = 0; i < memory_size; ++ i) {
 		int byte = fgetc(file);
@@ -60,7 +60,7 @@ void vm_exec_from_file(struct vm *p_vm, const char *p_path, bool p_warnings, boo
 			exit(EXIT_FAILURE);
 		}
 
-		p_vm->memory[i + 1] = byte;
+		p_vm->memory[i] = byte;
 	}
 
 	struct inst *program = (struct inst*)malloc(sizeof(struct inst) * program_size);
